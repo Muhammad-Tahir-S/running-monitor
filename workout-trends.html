@@ -2012,7 +2012,12 @@ function bindSync() {
     try {
       const s = await (await fetch("/status", { cache: "no-store" })).json();
       if (s.state === "syncing") note.textContent = "Syncing. " + (s.message || "");
-      else if (s.buildId && s.buildId !== PAY.buildId) location.reload();
+      else if (s.buildId && s.buildId !== PAY.buildId) {
+        // #region agent log
+        fetch("http://127.0.0.1:7782/ingest/49cf2e3f-abe1-4945-8d1d-46d824a001f0", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d6d6ae" }, body: JSON.stringify({ sessionId: "d6d6ae", hypothesisId: "D", location: "report_template.html:bindSync", message: "status build differs from page", data: { status: s.buildId, page: PAY.buildId, state: s.state }, timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
+        location.reload();
+      }
     } catch (err) {
       note.textContent = "The service stopped. Double-click Health Report.command.";
     }
