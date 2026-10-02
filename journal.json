@@ -1,4 +1,14 @@
 {
-  "entries": [],
+  "entries": [
+    {
+      "date": "2026-10-02",
+      "fatigue": 4,
+      "mood": 2,
+      "note": "Slept poorly, mental space is to shit",
+      "sleepQuality": 2,
+      "soreness": 4,
+      "stress": 1
+    }
+  ],
   "races": []
 }
