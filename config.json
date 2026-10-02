@@ -1,0 +1,90 @@
+{
+  "paths": {
+    "export_dir": ".",
+    "template": "report_template.html",
+    "report": "workout-trends.html",
+    "journal": "journal.json",
+    "state": "sync-state.json",
+    "metrics_dir": "metrics"
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8765,
+    "watch_seconds": 20,
+    "auto_commit": true
+  },
+  "eras": {
+    "split": "2026-04-01",
+    "before": "Before April 2026",
+    "after": "April 2026 onward"
+  },
+  "filters": {
+    "move_kmh": 4.5,
+    "max_kmh": 30,
+    "hr_min": 45,
+    "hr_max": 210,
+    "pwr_min": 30,
+    "pwr_max": 600,
+    "bin_s": 15,
+    "min_steady_min": 20,
+    "steady_cv": 0.25,
+    "half_match": 0.15,
+    "min_half_samples": 4,
+    "exclude_indoor_records": true
+  },
+  "zones": {
+    "easy_hr": [130, 145],
+    "hr_bands": [130, 145, 160, 175],
+    "hard_bpm": 150,
+    "hard_weight": 3,
+    "hr_max_model": 190
+  },
+  "couzens": {
+    "decoupling_limit": 5,
+    "readiness_band": 5,
+    "known_pace": ["10:00", "11:30"],
+    "baseline_days": 28,
+    "hrv_window_days": 90,
+    "sleep_target_h": 7,
+    "short_sleep_h": 6,
+    "hot_c": 29,
+    "cool_c": 26,
+    "long_run_ratio": 1.5,
+    "long_run_min": 40,
+    "easy_share_min": 0.8,
+    "vo2_two_speed_days_below": 40,
+    "speed_volume_floor": 0.66,
+    "speed_volume_ceiling": 0.80,
+    "peak_lookback_weeks": 16
+  },
+  "plan": {
+    "name": "Nike Run Club 5K plan",
+    "start": "2026-09-28",
+    "weeks": 8,
+    "speed_days": 2,
+    "easy_days": 2,
+    "long_runs": 1,
+    "speed_day_min": 2,
+    "bridge_target_min": 8,
+    "goal_pace_cap_min": 2,
+    "fastest_cap_min": 1,
+    "targets": [
+      { "name": "5K", "km": 5, "time": "25:00" },
+      { "name": "1 mile", "km": 1.609344, "time": "6:59" }
+    ]
+  },
+  "pace_bands": [
+    { "key": "bridge", "name": "Bridge, 5:10–5:40", "from": "5:10", "to": "5:40" },
+    { "key": "goal", "name": "25:00 pace, 4:50–5:10", "from": "4:50", "to": "5:10" },
+    { "key": "mile", "name": "Faster than 4:21", "from": "2:00", "to": "4:21" }
+  ],
+  "records": [
+    { "name": "1 km", "km": 1 },
+    { "name": "1 mile", "km": 1.609344 },
+    { "name": "5 km", "km": 5 },
+    { "name": "10 km", "km": 10 }
+  ],
+  "weeks_from": "2025-06-23",
+  "load_from": "2025-07-01",
+  "months_from": "2023-01"
+}

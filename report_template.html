@@ -1,0 +1,2069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Heart rate, power, and pace</title>
+<style>
+  :root {
+    --bg: #f3f0e8;
+    --paper: #fffcf8;
+    --ink: #1c1915;
+    --muted: #5f584f;
+    --line: #e4ddd2;
+    --hr: #9b2c2c;
+    --pwr: #1e4d7b;
+    --pace: #1d6b45;
+    --mark: #8a8176;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 "Avenir Next", "Segoe UI", sans-serif;
+  }
+  body { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: 100vh; }
+  .page { min-width: 0; }
+  header, main { max-width: 1080px; margin: 0 auto; padding: 28px 28px 8px; }
+  main { padding-bottom: 64px; }
+  h2[id], h3[id] { scroll-margin-top: 16px; }
+  .skip { position: absolute; left: -999px; }
+  .skip:focus { left: 8px; top: 8px; z-index: 10; background: var(--paper); padding: 6px 10px; }
+  .side {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    background: var(--paper); border-right: 1px solid var(--line);
+    padding: 18px 12px 24px; font-size: 14px;
+  }
+  .brand b { display: block; font-family: Palatino, "Iowan Old Style", Georgia, serif; font-size: 18px; }
+  .side-sync { margin: 12px 0 6px; }
+  .side-sync .sync { width: 100%; }
+  .side-sync .src { margin: 6px 0 0; font-size: 12px; line-height: 1.35; }
+  .side nav { display: block; margin: 0; }
+  .side h4 { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 16px 0 4px 8px; font-weight: 600; }
+  .side nav a { display: block; padding: 4px 8px; text-decoration: none; color: var(--ink); border-left: 2px solid transparent; border-radius: 0 3px 3px 0; }
+  .side nav a:hover { background: #f6f1e6; }
+  .side nav a.active { border-left-color: var(--hr); background: #f6f1e6; font-weight: 600; }
+  @media (max-width: 900px) {
+    body { display: block; }
+    .side {
+      position: sticky; top: 0; z-index: 5; height: auto; overflow: visible;
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      border-right: 0; border-bottom: 1px solid var(--line);
+    }
+    .brand span, .side-sync .src { display: none; }
+    .brand b { font-size: 15px; white-space: nowrap; }
+    .side-sync { margin: 0; }
+    .side-sync .sync { width: auto; }
+    .side nav { display: flex; flex: 1 1 auto; min-width: 0; gap: 2px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .side nav::-webkit-scrollbar { display: none; }
+    .side h4 { display: none; }
+    .side nav a { flex: 0 0 auto; white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 6px 8px; }
+    .side nav a.active { border-bottom-color: var(--hr); }
+    header, main { padding: 16px 14px 8px; }
+    h1 { font-size: 26px; }
+    h2[id], h3[id] { scroll-margin-top: 64px; }
+    th, td { padding: 6px 6px; }
+    main table { display: block; overflow-x: auto; max-width: 100%; }
+    main canvas { max-width: 100%; }
+  }
+  h1 {
+    font-family: Palatino, "Iowan Old Style", Georgia, serif;
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1.15;
+    margin: 0 0 8px;
+  }
+  h2 {
+    font-family: Palatino, "Iowan Old Style", Georgia, serif;
+    font-size: 24px;
+    font-weight: 600;
+    margin: 36px 0 8px;
+  }
+  h3 { font-size: 16px; margin: 0 0 6px; font-weight: 600; }
+  p { margin: 0 0 10px; }
+  a { color: var(--pwr); }
+  .sub { color: var(--muted); max-width: 68ch; }
+  .finding {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--hr);
+    padding: 14px 16px;
+    margin: 16px 0;
+    max-width: 78ch;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 22px;
+    align-items: center;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 10px 14px;
+    margin: 14px 0 6px;
+    font-size: 14px;
+  }
+  label { display: inline-flex; gap: 8px; align-items: center; }
+  select, button.sync { font: inherit; padding: 4px 8px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+  button.sync { cursor: pointer; }
+  button.sync:disabled { color: var(--muted); cursor: wait; }
+  .syncrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 4px; }
+  .stat {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 8px 12px;
+    min-width: 120px;
+  }
+  .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  .note { color: var(--muted); font-size: 14px; max-width: 78ch; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid2 .span2 { grid-column: 1 / -1; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } .grid2 .span2 { grid-column: auto; } }
+  .panel { margin: 8px 0 18px; }
+  .chart-wrap { position: relative; background: var(--paper); border: 1px solid var(--line); }
+  canvas { display: block; width: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+  .legend .open { background: transparent !important; border: 1.5px solid var(--ink); width: 8px; height: 8px; }
+  .axis-name { font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+  .tip {
+    position: absolute;
+    display: none;
+    z-index: 2;
+    pointer-events: none;
+    background: var(--ink);
+    color: #f6f3ec;
+    font-size: 12px;
+    line-height: 1.35;
+    padding: 6px 8px;
+    max-width: 260px;
+    white-space: pre-line;
+  }
+  .empty { color: var(--muted); padding: 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; background: var(--paper); }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+  th { font-size: 11px; letter-spacing: 0.03em; color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--paper); }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #f6f1e6; }
+  .scroll { max-height: 460px; overflow: auto; border: 1px solid var(--line); }
+  .src { font-size: 13px; color: var(--muted); }
+  .methods dt { font-weight: 600; margin-top: 10px; }
+  .methods dd { margin: 2px 0 0 0; color: var(--muted); max-width: 78ch; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 28px; max-width: 78ch; }
+  button.sync.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .ready { background: var(--paper); border: 1px solid var(--line); border-left: 6px solid var(--mark); padding: 14px 16px; margin: 10px 0 14px; }
+  .ready.intensity { border-left-color: var(--pace); }
+  .ready.aerobic { border-left-color: var(--pwr); }
+  .ready.recovery { border-left-color: #c4a15a; }
+  .ready.rest { border-left-color: var(--hr); }
+  .ready .level { font-family: Palatino, "Iowan Old Style", Georgia, serif; font-size: 24px; font-weight: 600; }
+  .ready ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+  .actions { margin: 4px 0 14px; padding-left: 22px; max-width: 78ch; }
+  .actions li { margin: 0 0 6px; }
+  .rule { display: inline-block; font-size: 11px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); padding: 0 5px; border-radius: 3px; margin-right: 6px; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+  .pill.pass { background: #e1eee6; color: var(--pace); }
+  .pill.partial { background: #f3ead6; color: #7a5b16; }
+  .pill.fail { background: #f3dede; color: var(--hr); }
+  .pill.na { background: #ece8e0; color: var(--muted); }
+  td.wrap, th.wrap { white-space: normal; min-width: 220px; text-align: left; }
+  .up { color: var(--pace); }
+  .down { color: var(--hr); }
+  .journal { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 14px; background: var(--paper); border: 1px solid var(--line); padding: 12px 14px; margin: 10px 0; font-size: 14px; }
+  .journal label { display: flex; flex-direction: column; align-items: stretch; gap: 3px; color: var(--muted); font-size: 12px; }
+  .journal input, .journal select { font: inherit; font-size: 14px; color: var(--ink); padding: 5px 6px; border: 1px solid var(--line); background: #fff; min-width: 0; }
+  .journal .wide { grid-column: 1 / -1; }
+  .journal .form-row { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .scroll.short { max-height: 260px; }
+  button.link { background: none; border: 0; color: var(--hr); cursor: pointer; font: inherit; font-size: 12px; padding: 0; }
+  @media (max-width: 600px) {
+    .stat { min-width: 0; flex: 1 1 42%; }
+    .journal { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the report</a>
+<aside class="side" id="side">
+  <div class="brand">
+    <b>Running report</b>
+    <span class="src" id="asOf"></span>
+  </div>
+  <div class="side-sync">
+    <button class="sync" id="syncBtn" type="button">Sync</button>
+    <p class="src" id="syncNote">Sync reads the newest zip in the export folder.</p>
+  </div>
+  <nav aria-label="Sections">
+    <h4>This week</h4>
+    <a href="#checkin">Check-in</a>
+    <a href="#journal">Journal</a>
+    <a href="#improve">Speed block</a>
+    <a href="#progress">Progress</a>
+    <h4>Status</h4>
+    <a href="#base">Base</a>
+    <a href="#records">Best times</a>
+    <a href="#plan">Targets</a>
+    <h4>Running</h4>
+    <a href="#trend">Trend</a>
+    <a href="#relationship">Relationship</a>
+    <a href="#efficiency">Efficiency</a>
+    <a href="#decoupling">Decoupling</a>
+    <a href="#session">A run</a>
+    <a href="#durability">Durability</a>
+    <a href="#curve">Best efforts</a>
+    <h4>Load</h4>
+    <a href="#volume">Volume</a>
+    <a href="#economy">Economy</a>
+    <a href="#heat">Heat</a>
+    <h4>Body</h4>
+    <a href="#recovery">Recovery</a>
+    <a href="#readiness">Readiness</a>
+    <h4>Reference</h4>
+    <a href="#log">Log</a>
+    <a href="#rules">Couzens rules</a>
+    <a href="#error">Error</a>
+    <a href="#methods">Methods</a>
+  </nav>
+</aside>
+<div class="page">
+<header>
+  <h1>Heart rate against power and pace</h1>
+  <p class="sub" id="lede">Apple Watch runs with heart rate, power, and pace.</p>
+  <p class="src">About 80 percent of the sentences on this page follow ASD-STE100. The other 20 percent are technical names, symbols, and source titles. Each check names its Couzens rule, for example C2. The rules are at the end of the page.</p>
+</header>
+<main id="main">
+  <h2 id="checkin">Check-in</h2>
+  <div class="ready" id="readyCard"></div>
+  <h3>What to do next</h3>
+  <ol class="actions" id="actions"></ol>
+  <h3>This week against last week</h3>
+  <div class="scroll"><table id="weekCompare"></table></div>
+  <div class="finding" id="finding"></div>
+
+  <h2 id="journal">Journal</h2>
+  <p class="note">Couzens adds mood, soreness, fatigue, and life stress to the watch markers (C17). One line a morning is enough. 1 is poor and 5 is great for every scale, so a 5 for soreness means no soreness. A score of 2 or less lowers the day by one level. A race result here counts as a recorded best.</p>
+  <form id="journalForm" class="journal" autocomplete="off">
+    <label>Date <input type="date" name="date" required></label>
+    <label>Mood <select name="mood"></select></label>
+    <label>Soreness <select name="soreness"></select></label>
+    <label>Fatigue <select name="fatigue"></select></label>
+    <label>Stress <select name="stress"></select></label>
+    <label>Sleep quality <select name="sleepQuality"></select></label>
+    <label class="wide">Note <input type="text" name="note" maxlength="500" placeholder="Legs heavy, slept badly, work deadline"></label>
+    <label>Race distance
+      <select name="raceKm">
+        <option value="">No race</option>
+        <option value="1">1 km</option>
+        <option value="1.609344">1 mile</option>
+        <option value="5">5 km</option>
+        <option value="10">10 km</option>
+        <option value="21.0975">Half marathon</option>
+        <option value="42.195">Marathon</option>
+      </select>
+    </label>
+    <label>Race time <input type="text" name="raceTime" placeholder="27:30" pattern="(\d+:)?\d{1,2}:\d{2}"></label>
+    <label>Race name <input type="text" name="raceName" maxlength="80" placeholder="parkrun"></label>
+    <div class="form-row"><button type="submit" class="sync primary">Save entry</button><span class="src" id="journalNote"></span></div>
+  </form>
+  <div class="scroll short">
+    <table>
+      <thead><tr><th>Date</th><th>Mood</th><th>Soreness</th><th>Fatigue</th><th>Stress</th><th>Sleep</th><th>Note</th><th></th></tr></thead>
+      <tbody id="journalBody"></tbody>
+    </table>
+  </div>
+
+  <h2 id="improve">Speed block</h2>
+  <div id="planIntro"></div>
+  <div class="stats" id="planStats"></div>
+  <div class="grid2">
+    <div>
+      <h3 id="nikeTitle">Plan checks</h3>
+      <div class="scroll"><table><thead><tr><th>Rule</th><th>Check</th><th>Result</th><th>This week</th></tr></thead><tbody id="nikeBody"></tbody></table></div>
+    </div>
+    <div>
+      <h3 id="couzensTitle">Couzens checks</h3>
+      <div class="scroll"><table><thead><tr><th>Rule</th><th>Check</th><th>Result</th><th>This week</th></tr></thead><tbody id="couzensBody"></tbody></table></div>
+    </div>
+  </div>
+  <h3>Week by week</h3>
+  <p class="note">Each point is a Monday-start week. The vertical line is the plan start. The 3K–10K band is the pace you can hold now (C11). The run-hour floor is Couzens' share of the recent peak (C13). Long-run decoupling stays inside ±5% (C2).</p>
+  <div class="panel" id="weekSpeed"></div>
+  <div class="grid2">
+    <div class="panel" id="weekHours"></div>
+    <div class="panel" id="weekDec"></div>
+  </div>
+  <div class="panel" id="weekEasy"></div>
+
+  <h2 id="progress">Progress by week</h2>
+  <p class="note">One row per Monday-start week, newest first. The same table is saved to metrics/weeks.csv on every sync, so git keeps the history. Easy pace and EF use runs of 20 minutes or more in the easy heart-rate band (C4).</p>
+  <div class="scroll"><table id="progressTable"></table></div>
+
+  <h2 id="base">Base building</h2>
+  <div class="stats" id="baseStats"></div>
+  <p class="note">Five checks give the rating. A pass is 1. A partial pass is 0.5. Each check is computed from the data on every sync.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Rule</th><th>Check</th><th>Result</th><th>Evidence</th></tr></thead>
+      <tbody id="baseBody"></tbody>
+    </table>
+  </div>
+
+  <h2 id="records">Best times</h2>
+  <p class="note">A recorded best is the fastest average pace over a whole workout that covers the distance, up to twice as long. The time is that pace times the distance. A run that covers the distance at that average pace holds a stretch at least that fast. Indoor runs are out. Races from the journal count too. Outdoor GPS distance can be wrong by about 4 to 6 percent.</p>
+  <p class="note">The equivalent column is the best 5 km scaled with the Riegel exponent 1.06. It is a model, not a result.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Distance</th><th>Recorded best</th><th>Pace</th><th>Date</th><th>From</th><th>5 km equivalent</th></tr></thead>
+      <tbody id="recordsBody"></tbody>
+    </table>
+  </div>
+
+  <h2 id="plan">Targets and pace bands</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Mark</th><th>Target</th><th>Pace</th><th>Recorded now</th></tr></thead>
+      <tbody id="targetsBody"></tbody>
+    </table>
+  </div>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Band</th><th>Pace per km</th><th>Rule</th></tr></thead>
+      <tbody id="bandsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="controls">
+    <label>Runs in the charts
+      <select id="minDur">
+        <option value="0">Every instrumented run</option>
+        <option value="20" selected>20 minutes or longer</option>
+        <option value="40">40 minutes or longer</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="steadyOnly" checked> Show steady pace only on the decoupling charts</label>
+  </div>
+  <div class="stats" id="stats"></div>
+
+  <h2 id="trend">Trend across time</h2>
+  <p class="note">Each point is one Apple Watch run. Blue is <span class="era-before"></span>. Green is <span class="era-after"></span>. Faster pace is at the top of the pace chart. Runs from other apps count in the hour totals only when the Watch did not record the same run (M1).</p>
+  <div class="panel" id="trendHr"></div>
+  <div class="panel" id="trendPwr"></div>
+  <div class="panel" id="trendPace"></div>
+
+  <h2 id="relationship">Heart rate against output</h2>
+  <p class="note">Each point is the mean for one run. Apple checks a 5-second heart-rate sample against a chest strap. A run mean moves less than one sample. Apple does not give a watt error for running power. Use the watts to compare this watch with itself.</p>
+  <div class="grid2">
+    <div class="panel" id="scPwr"></div>
+    <div class="panel" id="scPace"></div>
+  </div>
+
+  <h2 id="efficiency">Efficiency factor, split by heart-rate band</h2>
+  <p class="note">Efficiency factor is mean power divided by mean heart rate. The unit is watts per beat. Couzens compares it only between similar efforts (C4). A mixed line across bands shows a change of pace, not of fitness. Compare points in one band, and keep heat in mind (C5).</p>
+  <div class="panel" id="efChart"></div>
+
+  <h2 id="decoupling">Aerobic decoupling</h2>
+  <p class="note">Couzens uses the Joe Friel split (C1). Divide the run into two equal times. Use only samples while you move at <span data-cfg="filters.move_kmh"></span> km/h or more, for power, speed, and heart rate. Stops do not enter either half. Each half needs at least <span data-cfg="filters.min_half_samples"></span> samples. The two halves must stay within 15 percent for power or for speed. If they do not, the number is a pace change, not drift. Decoupling is (first half minus second half) divided by the first half. A positive number means the second half needs more beats for the same output. The lines at ±<span data-cfg="couzens.decoupling_limit"></span> percent are his limits (C2). A filled point is a steady run (C3).</p>
+  <div class="grid2">
+    <div class="panel" id="decP"></div>
+    <div class="panel" id="decS"></div>
+  </div>
+
+  <h2 id="session">One run, minute by minute</h2>
+  <p class="note">The heart-rate shade is the Apple limit for a 5-second sample. For running in all conditions, 88 percent of samples are within 5 bpm of a chest strap. 94 percent are within 10 bpm. The pace shade is about ±5 percent from outdoor GPS tests. An indoor run has no pace shade. Power has no shade.</p>
+  <div class="controls">
+    <label>Run
+      <select id="runPick"></select>
+    </label>
+  </div>
+  <p id="runBlurb" class="note"></p>
+  <div class="panel" id="runHrPwr"></div>
+  <div class="panel" id="runPace"></div>
+
+  <h2 id="durability">Durability</h2>
+  <p class="note">This chart is decoupling against duration. Couzens uses it on steady easy runs, not on intervals (C3). A long steady run inside ±5 percent is a candidate for your aerobic heart rate (C6). This file has no lactate test, so that heart rate is an estimate.</p>
+  <div class="panel" id="durChart"></div>
+
+  <h2 id="curve">Best efforts</h2>
+  <p class="note">These curves are the best mean power and the best mean speed over each window, from Apple Watch samples. Samples above <span data-cfg="filters.max_kmh"></span> km/h or <span data-cfg="filters.pwr_max"></span> W are removed as sensor faults (M4). Sprint reps stay in. Each window must be mostly continuous. Do not compare these watts with Stryd or Garmin.</p>
+  <div class="grid2">
+    <div class="panel" id="mmpPwr"></div>
+    <div class="panel" id="mmpSpd"></div>
+  </div>
+
+  <h2 id="volume">Volume and work</h2>
+  <p class="note">The hours include every workout: runs, rides, walks, and strength. Couzens treats monthly volume as the base dose (C8). <span id="droppedNote"></span> The calorie chart is walk and run calories only. When the watch is calibrated, Apple reports 0 ± 9 percent against a lab cart. Other studies often find a calorie error above 10 percent.</p>
+  <div class="panel" id="volChart"></div>
+  <div class="panel" id="kcalChart"></div>
+
+  <h2 id="economy">Running economy companions</h2>
+  <p class="note">These charts show ground contact time, vertical oscillation, and stride length against pace. They do not replace power. They show if a slower pace has a different stride. Faster pace is on the left.</p>
+  <div class="grid2">
+    <div class="panel" id="gctChart"></div>
+    <div class="panel" id="voChart"></div>
+    <div class="panel span2" id="strideChart"></div>
+  </div>
+
+  <h2 id="heat">Heat</h2>
+  <p class="note">Heat and fluid loss raise heart rate at the same output (C5). His Kona crew gave up about 20 percent of run EF to the conditions. Temperature comes from the workout weather value, converted from Fahrenheit. The export stores humidity as centi-percent. This page corrects that. When the steady filter is on, the points are steady runs.</p>
+  <div class="panel" id="heatChart"></div>
+
+  <h2 id="recovery">Recovery</h2>
+  <p class="note">Couzens treats recovery as part of the training dose (C18). He keeps volume and intensity as two loads (C7) and reads sleep, resting heart rate, and HRV against your own baseline (C17). A night is the sleep that ends on the morning of the run. A nap from 11:00 to 18:00 is not part of the night (M3).</p>
+  <div class="stats" id="recoveryStats"></div>
+  <p class="note">The sleep chart and the load charts use every day. They do not use the run filter. The four scatter charts use the duration filter. Green points are the easy band.</p>
+  <div class="panel" id="sleepChart"></div>
+  <div class="grid2">
+    <div class="panel" id="easyHardChart"></div>
+    <div class="panel" id="stressChart"></div>
+  </div>
+  <p class="note">A workout with a mean heart rate under <span data-cfg="zones.hard_bpm"></span> bpm is easy time. At or above it, the time is hard. The stress estimate counts each hard minute <span data-cfg="zones.hard_weight"></span> times. Acute is 7 days. Chronic is 28 days divided by 4, so both lines are one week. This estimate is not TrainingPeaks TSS.</p>
+  <div class="grid2">
+    <div class="panel" id="sleepEfChart"></div>
+    <div class="panel" id="sleepPwrChart"></div>
+    <div class="panel" id="tempEfChart"></div>
+    <div class="panel" id="humEfChart"></div>
+  </div>
+  <h3>What the data says</h3>
+  <div id="recoveryText"></div>
+  <div class="grid2">
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Previous night</th><th>Easy runs</th><th>EF</th><th>Power</th><th>Decoupling</th><th>Air</th></tr></thead>
+        <tbody id="sleepTable"></tbody>
+      </table>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Workout air</th><th>Easy runs</th><th>Power</th><th>EF</th><th>Heart rate</th></tr></thead>
+        <tbody id="heatTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 id="readiness">Readiness around the runs</h2>
+  <p class="note" id="readyNote"></p>
+  <div class="grid2">
+    <div class="panel" id="easyHr"></div>
+    <div class="panel" id="rhrChart"></div>
+    <div class="panel" id="hrvChart"></div>
+    <div class="panel" id="vo2Chart"></div>
+    <div class="panel" id="whrChart"></div>
+    <div class="panel" id="hrrChart"></div>
+  </div>
+
+  <h2 id="log">Instrumented runs</h2>
+  <p class="note">Select a row to open that run above. Decoupling is blank when a half does not have enough moving samples.</p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Steady</th><th>Min</th><th>HR</th><th>Power</th><th>Pace</th><th>EF</th><th>Pw:HR %</th><th>Pa:HR %</th><th>°C</th><th>km</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+
+  <h2 id="rules">Couzens rules</h2>
+  <p class="note">Every check on this page uses one of these rules. The full text, with what is Couzens and what is adapted to Apple Watch data, is in COUZENS_RULES.md. The thresholds are in config.json.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Rule</th><th>What it says</th><th>Source</th></tr></thead>
+      <tbody id="rulesBody"></tbody>
+    </table>
+  </div>
+
+  <h2 id="error">Stated error and independent error</h2>
+  <p class="note">These two error sets stay separate. Apple’s numbers are from the November 2024 heart-rate and calorie paper. They use samples that the watch agrees to publish. The watch already removes poor samples. The other numbers are from other studies. They are not a calibration of this watch.</p>
+  <h3>Heart rate during workouts</h3>
+  <p class="src">Apple compares 5-second readings with a chest strap. Availability is the part of the time that has a published reading.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Activity</th><th>Within 5 bpm</th><th>Within 10 bpm</th><th>Availability</th></tr></thead>
+      <tbody>
+        <tr><td>Running, all terrain</td><td>88%</td><td>94%</td><td>88%</td></tr>
+        <tr><td>Running, treadmill lab</td><td>96%</td><td>98%</td><td>97%</td></tr>
+        <tr><td>Walking, all terrain</td><td>87%</td><td>95%</td><td>91%</td></tr>
+        <tr><td>Cycling, all terrain</td><td>96%</td><td>99%</td><td>97%</td></tr>
+        <tr><td>HIIT</td><td>91%</td><td>97%</td><td>95%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The sensor range is 30 to 210 bpm. A loose band, tattoos, cold, water, or a lot of wrist motion can reduce the number of readings. A 2025 pooled study (npj Digital Medicine) finds a mean bias near zero, about −0.3 bpm, with limits of about −7 to +7 bpm. In exercise the limits are about −7 to +6 bpm.</p>
+  <h3>Pace, power, calories, and the other series</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Measure</th><th>What Apple states</th><th>Independent reading</th><th>How this page uses it</th></tr></thead>
+      <tbody>
+        <tr><td>Running pace / GPS distance</td><td>No pace percentage. Distance uses GPS plus stride calibration.</td><td>An earlier Apple Watch on 200 m courses: about 4.0–5.6% distance error outdoors, about 16% indoors.</td><td>±5% shade on the outdoor session pace trace.</td></tr>
+        <tr><td>Running power</td><td>No watt error. It is an estimate from motion, GPS, and body metrics.</td><td>No shared definition across brands. Absolute watts are not interchangeable.</td><td>Within-watch trend only. No watt band drawn.</td></tr>
+        <tr><td>Walk / run calories</td><td>0 ± 9% versus a metabolic cart when best practices are followed (n = 130).</td><td>Calorie error in a 2025 review exceeded 10% across subgroups.</td><td>±9% whiskers on monthly walk and run calories.</td></tr>
+        <tr><td>Cardio fitness (VO2)</td><td>An estimate from outdoor walk, run, and hike heart rate and pace.</td><td>Lab comparisons are often several ml/kg/min off.</td><td>Labeled as an estimate. It sets the speed-day count (C12).</td></tr>
+        <tr><td>Cardio recovery</td><td>A model of the 60-second drop after work near 85% of predicted max heart rate.</td><td>Do not read a single value as a measured recovery.</td><td>Plotted as the stored estimate.</td></tr>
+        <tr><td>Heart-rate variability</td><td>SDNN from readings taken while still.</td><td>Couzens uses morning rMSSD. SDNN is a different, noisier measure.</td><td>Daily median. Quartiles against the last 90 days set the day (C16).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="methods">Sources, limits, and process</h2>
+  <dl class="methods">
+    <dt>Same input, same page</dt>
+    <dd>The page depends only on the export zip, config.json, and journal.json (M5). The "as of" time is the newest record in the export. Each sync writes metrics/weeks.csv and metrics/summary.json and commits them to git, so every change in a number has a date and a reason.</dd>
+    <dt>One session, one record</dt>
+    <dd>A copy of a Watch workout from another app, such as Nike Run Club or Sworkit, is removed when it overlaps the Watch workout by half or more. Exact duplicates are removed (M1).</dd>
+    <dt>Aerobic threshold</dt>
+    <dd>Couzens finds it from the first rise in lactate. This export has no lactate. A steady run with decoupling inside ±5 percent is only a candidate heart rate (C6).</dd>
+    <dt>Readiness</dt>
+    <dd>The day starts from the SDNN quartile (C16). A resting heart rate 5% over its 28-day median, a night under the sleep target, a known-pace heart rate 5% off normal (C15), or a journal score of 2 or less each lower the day by one level. Two flags give a recovery day at most (C17).</dd>
+    <dt>Process</dt>
+    <dd>Export from the Health app on the phone. Put the zip in this folder, or replace the export.zip link. Double-click "Health Report.command". It starts the service and opens the page. The service watches the folder and rebuilds when a newer export appears. The Sync button forces a check.</dd>
+    <dt>Sources</dt>
+    <dd>Couzens: alancouzens.com and alancouzens.blogspot.com; each rule links its post. Apple: “Using Apple Watch to measure heart rate, calorimetry, and activity,” November 2024. Heart-rate studies: npj Digital Medicine, 2025. ASD-STE100 is the controlled-language standard for the sentences on this page.</dd>
+  </dl>
+  <footer id="foot"></footer>
+</main>
+</div>
+<script type="application/json" id="payload">{}</script>
+<script>
+const PAY = JSON.parse(document.getElementById("payload").textContent);
+const RUNS = PAY.runs;
+const CFG = PAY.config;
+const EV = PAY.eval;
+const SPLIT = CFG.eras.split;
+const ERA = { before: CFG.eras.before, after: CFG.eras.after };
+const EASY = CFG.zones.easy_hr;
+const LIM = CFG.couzens.decoupling_limit;
+const EASY_LABEL = EASY[0] + "–" + EASY[1] + " bpm";
+const EDGES = CFG.zones.hr_bands;
+const BAND_LABELS = ["<" + EDGES[0]].concat(EDGES.slice(1).map((e, i) => EDGES[i] + "-" + e), [EDGES[EDGES.length - 1] + "+"]);
+const SERVED = location.protocol.startsWith("http");
+const COL = {
+  hr: "#9b2c2c",
+  pwr: "#1e4d7b",
+  pace: "#1d6b45",
+  early: "#1e4d7b",
+  late: "#1d6b45",
+  ink: "#1c1915",
+  muted: "#6d665c",
+  mark: "#8a8176",
+  grid: "#e7e1d6",
+  band5: "rgba(155,44,44,0.14)",
+  band10: "rgba(155,44,44,0.08)",
+  paceBand: "rgba(29,107,69,0.13)",
+  bands: {}
+};
+["#8d867c", "#1d6b45", "#1e4d7b", "#9b2c2c", "#6a4c93", "#3d6b66", "#c4a15a"].forEach((c, i) => { if (BAND_LABELS[i]) COL.bands[BAND_LABELS[i]] = c; });
+function esc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function isEasy(r) { return r.hr >= EASY[0] && r.hr <= EASY[1]; }
+function isLate(r) { return r.date >= SPLIT; }
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function median(xs) {
+  const a = xs.filter(v => v != null && !Number.isNaN(v)).slice().sort((p, q) => p - q);
+  if (!a.length) return null;
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+function fmtPace(p) {
+  if (p == null || Number.isNaN(p)) return "—";
+  let m = Math.floor(p + 1e-9);
+  let s = Math.round((p - m) * 60);
+  if (s === 60) { m += 1; s = 0; }
+  return m + ":" + String(s).padStart(2, "0");
+}
+function fmt(v, d) {
+  if (v == null || Number.isNaN(Number(v))) return "—";
+  return Number(v).toFixed(d);
+}
+function minDur() { return Number(document.getElementById("minDur").value); }
+function steadyOnly() { return document.getElementById("steadyOnly").checked; }
+function baseRuns() { return RUNS.filter(r => r.dur >= minDur()); }
+function decRuns() {
+  return baseRuns().filter(r => r.decP != null && (!steadyOnly() || r.steady));
+}
+function eraColor(r) { return isLate(r) ? COL.late : COL.early; }
+function tipRun(r) {
+  return r.label
+    + "\nHR " + fmt(r.hr, 0) + " bpm · " + fmt(r.pwr, 0) + " W · " + fmtPace(r.pace) + "/km"
+    + "\nEF " + fmt(r.ef, 2) + " W/bpm"
+    + (r.decP == null ? "" : "\nPower decoupling " + fmt(r.decP, 1) + "%")
+    + (r.decS == null ? "" : "\nPace decoupling " + fmt(r.decS, 1) + "%")
+    + (r.steadyPace ? "\nSteady pace" : "\nVariable pace")
+    + (r.indoor ? "\nIndoor" : "");
+}
+
+function ticks(a, b, count) {
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  const span = hi - lo || 1;
+  const step0 = span / Math.max(1, count);
+  const pow = Math.pow(10, Math.floor(Math.log10(step0)));
+  const err = step0 / pow;
+  const step = (err >= 7.5 ? 10 : err >= 3.5 ? 5 : err >= 1.5 ? 2 : 1) * pow;
+  const start = Math.ceil((lo - step * 1e-6) / step) * step;
+  const out = [];
+  for (let v = start; v <= hi + step * 0.01; v += step) {
+    const rounded = Math.round(v / step) * step;
+    if (rounded >= lo - step * 0.01 && rounded <= hi + step * 0.01) out.push(Number(rounded.toPrecision(12)));
+  }
+  return out.length ? out : [lo, hi];
+}
+function timeTicks(t0, t1) {
+  const days = (t1 - t0) / 86400000;
+  const step = days > 520 ? 3 : days > 260 ? 2 : 1;
+  const d0 = new Date(t0);
+  let y = d0.getUTCFullYear();
+  let m = d0.getUTCMonth();
+  const out = [];
+  for (let guard = 0; guard < 80; guard++) {
+    const t = Date.UTC(y, m, 1);
+    if (t > t1) break;
+    if (t >= t0 - 86400000) out.push(t);
+    m += step;
+    while (m > 11) { m -= 12; y += 1; }
+  }
+  return out;
+}
+function fmtMonth(ms) {
+  const d = new Date(ms);
+  return MONTHS[d.getUTCMonth()] + " " + String(d.getUTCFullYear()).slice(2);
+}
+function yMap(min, max, top, bottom) {
+  const span = max - min || 1;
+  return {
+    to(v) { return bottom + (v - min) / span * (top - bottom); },
+    inv(px) { return min + (px - bottom) / (top - bottom) * span; }
+  };
+}
+function xMap(min, max, left, right) {
+  const span = max - min || 1;
+  return {
+    to(v) { return left + (v - min) / span * (right - left); },
+    inv(px) { return min + (px - left) / (right - left) * span; }
+  };
+}
+function padDomain(min, max, frac) {
+  if (min == null || max == null) return [0, 1];
+  if (min === max) {
+    const d = Math.abs(min) * 0.08 || 1;
+    return [min - d, max + d];
+  }
+  const pad = (max - min) * (frac == null ? 0.08 : frac);
+  return [min - pad, max + pad];
+}
+function finite(data) { return data.filter(d => d.y != null && !Number.isNaN(d.y) && d.x != null); }
+
+function legendHtml(items) {
+  return '<div class="legend">' + items.map(i => {
+    const cls = i.open ? "open" : "";
+    return '<span><i class="' + cls + '" style="background:' + i.color + '"></i>' + i.name + '</span>';
+  }).join("") + "</div>";
+}
+
+function mount(host, spec) {
+  host.innerHTML = "";
+  const present = (spec.series || []).some(s => finite(s.data || []).length);
+  const stacked = spec.kind === "stacked" && spec.rows && spec.rows.some(r => spec.keys.some(k => r[k.key]));
+  const bars = spec.kind === "bars" && spec.data && spec.data.some(d => d.y != null);
+  if (!present && !stacked && !bars) {
+    host.innerHTML = '<p class="empty">Nothing to plot for this filter.</p>';
+    return;
+  }
+  if (spec.legend) host.insertAdjacentHTML("beforeend", legendHtml(spec.legend));
+  const axisBits = [];
+  if (spec.yLabel) axisBits.push(spec.yLabel);
+  if (spec.y2Label) axisBits.push("Right axis: " + spec.y2Label);
+  if (spec.xAxis) axisBits.push(spec.xAxis);
+  if (axisBits.length) host.insertAdjacentHTML("beforeend", '<p class="axis-name">' + axisBits.join(" · ") + "</p>");
+  const wrap = document.createElement("div");
+  wrap.className = "chart-wrap";
+  const canvas = document.createElement("canvas");
+  const height = spec.height || 300;
+  canvas.style.height = height + "px";
+  const tip = document.createElement("div");
+  tip.className = "tip";
+  wrap.appendChild(canvas);
+  wrap.appendChild(tip);
+  host.appendChild(wrap);
+  let hits = [];
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(280, wrap.clientWidth || 640);
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(height * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, height);
+    const hasY2 = !!(spec.y2Label || (spec.series || []).some(s => s.axis === "y2") || (spec.kind === "stacked" && spec.y2key));
+    const pad = { l: 46, r: hasY2 ? 48 : 12, t: 12, b: spec.xAxis ? 52 : 40 };
+    hits = [];
+    if (spec.kind === "stacked") drawStacked(ctx, w, height, pad);
+    else if (spec.kind === "bars") drawBars(ctx, w, height, pad);
+    else drawXY(ctx, w, height, pad);
+  }
+
+  function axes(ctx, w, height, pad, x0, x1, y0, y1, y2a, y2b) {
+    ctx.font = "11px sans-serif";
+    ctx.fillStyle = COL.muted;
+    ctx.strokeStyle = COL.grid;
+    ctx.lineWidth = 1;
+    const XS = xMap(x0, x1, pad.l, w - pad.r);
+    const YS = yMap(y0, y1, pad.t, height - pad.b);
+    const yTicks = ticks(y0, y1, 4);
+    ctx.textAlign = "right";
+    yTicks.forEach(v => {
+      const y = YS.to(v);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(w - pad.r, y);
+      ctx.stroke();
+      ctx.fillText(formatTick(v, spec.yDigits), pad.l - 6, y + 3);
+    });
+    ctx.textAlign = "left";
+    let xTicks;
+    if (spec.xType === "time") xTicks = timeTicks(x0, x1);
+    else if (spec.xLabels) xTicks = spec.xLabels.map((_, i) => i);
+    else xTicks = ticks(x0, x1, spec.xTicks || 5);
+    xTicks.forEach(v => {
+      const x = XS.to(v);
+      if (x < pad.l - 2 || x > w - pad.r + 2) return;
+      if (spec.xLabels && spec.xLabels.length > 18 && (v % 3) !== 0) return;
+      ctx.fillStyle = COL.muted;
+      const label = spec.xType === "time" ? fmtMonth(v) : (spec.xLabels ? spec.xLabels[v] : formatTick(v, spec.xDigits));
+      if (label == null) return;
+      ctx.save();
+      ctx.translate(x, height - (spec.xAxis ? 22 : 16));
+      ctx.rotate(-0.5);
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    });
+    if (spec.xAxis) {
+      ctx.fillStyle = COL.muted;
+      ctx.textAlign = "center";
+      ctx.fillText(spec.xAxis, (pad.l + w - pad.r) / 2, height - 6);
+      ctx.textAlign = "left";
+    }
+    ctx.fillStyle = COL.muted;
+    let Y2 = null;
+    if (y2a != null && y2b != null) {
+      Y2 = yMap(y2a, y2b, pad.t, height - pad.b);
+      ctx.fillStyle = spec.y2Color || COL.pace;
+      ticks(y2a, y2b, 4).forEach(v => {
+        ctx.fillText(formatTick(v, spec.y2Digits), w - pad.r + 6, Y2.to(v) + 3);
+      });
+    }
+    return { XS, YS, Y2 };
+  }
+
+  function drawXY(ctx, w, height, pad) {
+    const all = [];
+    spec.series.forEach(s => finite(s.data).forEach(d => all.push({ ...d, axis: s.axis || "y" })));
+    const xs = all.map(d => d.x);
+    let x0, x1;
+    if (spec.xDomain) { x0 = spec.xDomain[0]; x1 = spec.xDomain[1]; }
+    else { x0 = Math.min(...xs); x1 = Math.max(...xs); if (spec.xType !== "time") { const p = padDomain(x0, x1); x0 = p[0]; x1 = p[1]; } else { const g = (x1 - x0) * 0.03 || 86400000; x0 -= g; x1 += g; } }
+    const yVals = all.filter(d => d.axis !== "y2").map(d => d.y);
+    (spec.hlines || []).forEach(h => { if ((h.axis || "y") !== "y2") { yVals.push(h.y); } });
+    (spec.bands || []).forEach(b => { if ((b.axis || "y") !== "y2") { yVals.push(b.y0, b.y1); } });
+    let y0, y1;
+    if (spec.yDomain) { y0 = spec.yDomain[0]; y1 = spec.yDomain[1]; }
+    else { const p = padDomain(Math.min(...yVals), Math.max(...yVals)); y0 = p[0]; y1 = p[1]; }
+    let y2a = null, y2b = null;
+    const y2vals = all.filter(d => d.axis === "y2").map(d => d.y);
+    (spec.hlines || []).forEach(h => { if (h.axis === "y2") y2vals.push(h.y); });
+    if (y2vals.length) {
+      if (spec.y2Domain) { y2a = spec.y2Domain[0]; y2b = spec.y2Domain[1]; }
+      else { const p = padDomain(Math.min(...y2vals), Math.max(...y2vals)); y2a = p[0]; y2b = p[1]; }
+    }
+    const { XS, YS, Y2 } = axes(ctx, w, height, pad, x0, x1, y0, y1, y2a, y2b);
+    (spec.bands || []).forEach(b => {
+      const S = (b.axis === "y2" ? Y2 : YS);
+      if (!S) return;
+      const ya = S.to(b.y0), yb = S.to(b.y1);
+      ctx.fillStyle = b.color;
+      ctx.fillRect(pad.l, Math.min(ya, yb), w - pad.r - pad.l, Math.abs(yb - ya));
+    });
+    (spec.ribbons || []).forEach(rb => {
+      const pts = (rb.data || []).filter(d => d.y != null);
+      if (pts.length < 2) return;
+      ctx.beginPath();
+      pts.forEach((d, i) => {
+        const x = XS.to(d.x);
+        const y = YS.to(d.y + rb.delta);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      for (let i = pts.length - 1; i >= 0; i--) ctx.lineTo(XS.to(pts[i].x), YS.to(pts[i].y - rb.delta));
+      ctx.closePath();
+      ctx.fillStyle = rb.color;
+      ctx.fill();
+    });
+    (spec.fracBands || []).forEach(fb => {
+      const scale = fb.axis === "y2" ? Y2 : YS;
+      const pts = (fb.data || []).filter(d => d.y != null);
+      if (!scale || pts.length < 2) return;
+      ctx.beginPath();
+      pts.forEach((d, i) => {
+        const x = XS.to(d.x);
+        const y = scale.to(d.y * (1 + fb.frac));
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      for (let i = pts.length - 1; i >= 0; i--) ctx.lineTo(XS.to(pts[i].x), scale.to(pts[i].y * (1 - fb.frac)));
+      ctx.closePath();
+      ctx.fillStyle = fb.color;
+      ctx.fill();
+    });
+    (spec.hlines || []).forEach(h => {
+      const S = h.axis === "y2" ? Y2 : YS;
+      if (!S) return;
+      const y = S.to(h.y);
+      ctx.save();
+      ctx.strokeStyle = h.color || COL.mark;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(w - pad.r, y);
+      ctx.stroke();
+      ctx.restore();
+      if (h.label) {
+        ctx.fillStyle = h.color || COL.mark;
+        ctx.fillText(h.label, pad.l + 6, y - 4);
+      }
+    });
+    (spec.vlines || []).forEach(v => {
+      const x = XS.to(v.x);
+      if (x < pad.l || x > w - pad.r) return;
+      ctx.save();
+      ctx.strokeStyle = v.color || COL.ink;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, pad.t);
+      ctx.lineTo(x, height - pad.b);
+      ctx.stroke();
+      ctx.restore();
+    });
+    spec.series.forEach(s => {
+      const S = s.axis === "y2" ? Y2 : YS;
+      const data = s.data || [];
+      ctx.strokeStyle = s.color;
+      ctx.fillStyle = s.color;
+      ctx.lineWidth = s.width || 1.6;
+      if (s.kind !== "scatter") {
+        ctx.beginPath();
+        let pen = false;
+        let prev = null;
+        data.forEach(d => {
+          if (d.y == null) { pen = false; return; }
+          const x = XS.to(d.x), y = S.to(d.y);
+          const gap = s.maxGap != null && prev != null && (d.x - prev) > s.maxGap;
+          if (!pen || gap) { ctx.moveTo(x, y); pen = true; }
+          else ctx.lineTo(x, y);
+          prev = d.x;
+        });
+        ctx.stroke();
+      }
+      data.forEach(d => {
+        if (d.y == null || !d.tip) return;
+        hits.push({ x: XS.to(d.x), y: S.to(d.y), tip: d.tip, id: d.id });
+      });
+      if (s.kind !== "line") {
+        data.forEach(d => {
+          if (d.y == null) return;
+          const x = XS.to(d.x), y = S.to(d.y);
+          const rad = s.radius || 3.5;
+          ctx.beginPath();
+          ctx.arc(x, y, rad, 0, Math.PI * 2);
+          if (d.open) { ctx.strokeStyle = s.color; ctx.lineWidth = 1.4; ctx.stroke(); }
+          else { ctx.fillStyle = d.color || s.color; ctx.fill(); }
+          hits.push({ x, y, tip: d.tip, id: d.id });
+        });
+      }
+    });
+    bind(canvas, tip, w, height);
+  }
+
+  function drawStacked(ctx, w, height, pad) {
+    const rows = spec.rows;
+    const n = rows.length;
+    const totals = rows.map(r => spec.keys.reduce((s, k) => s + (Number(r[k.key]) || 0), 0));
+    const maxY = Math.max(...totals, 1);
+    const y2vals = spec.y2key ? rows.map(r => Number(r[spec.y2key]) || 0) : [];
+    const y2max = y2vals.length ? Math.max(...y2vals, 1) : null;
+    const { XS, YS, Y2 } = axes(ctx, w, height, pad, -0.5, n - 0.5, 0, maxY * 1.08, spec.y2key ? 0 : null, y2max ? y2max * 1.08 : null);
+    const gap = n > 24 ? 1 : 3;
+    const slot = (w - pad.l - pad.r) / n;
+    rows.forEach((r, i) => {
+      let acc = 0;
+      spec.keys.forEach(k => {
+        const v = Number(r[k.key]) || 0;
+        if (!v) return;
+        const x = XS.to(i) - slot / 2 + gap / 2;
+        const y0 = YS.to(acc);
+        const y1 = YS.to(acc + v);
+        ctx.fillStyle = k.color;
+        ctx.fillRect(x, Math.min(y0, y1), Math.max(1, slot - gap), Math.abs(y1 - y0));
+        acc += v;
+      });
+      const parts = spec.keys.map(k => k.name + " " + fmt(r[k.key], 1)).join("\n");
+      hits.push({ x: XS.to(i), y: YS.to(acc), tip: r.m + "\n" + parts + (spec.y2key ? "\nRun km " + fmt(r[spec.y2key], 1) : ""), id: null });
+    });
+    if (Y2 && spec.y2key) {
+      ctx.strokeStyle = spec.y2Color || COL.ink;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      rows.forEach((r, i) => {
+        const x = XS.to(i), y = Y2.to(Number(r[spec.y2key]) || 0);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+    spec.xLabels = rows.map(r => r.m.slice(2));
+    bind(canvas, tip, w, height);
+  }
+
+  function drawBars(ctx, w, height, pad) {
+    const data = spec.data.filter(d => d.y != null);
+    const n = data.length;
+    const maxY = Math.max(...data.map(d => d.y * (spec.whisker ? 1 + spec.whisker : 1)), 1);
+    const { XS, YS } = axes(ctx, w, height, pad, -0.5, n - 0.5, 0, maxY * 1.08, null, null);
+    const slot = (w - pad.l - pad.r) / n;
+    data.forEach((d, i) => {
+      const x = XS.to(i) - Math.min(14, slot * 0.35);
+      const bw = Math.min(28, slot * 0.7);
+      const y = YS.to(d.y);
+      const y0 = YS.to(0);
+      ctx.fillStyle = spec.color || COL.pace;
+      ctx.fillRect(x, Math.min(y, y0), bw, Math.abs(y0 - y));
+      if (spec.whisker) {
+        const yHi = YS.to(d.y * (1 + spec.whisker));
+        const yLo = YS.to(d.y * (1 - spec.whisker));
+        const cx = x + bw / 2;
+        ctx.strokeStyle = COL.ink;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, yHi);
+        ctx.lineTo(cx, yLo);
+        ctx.moveTo(cx - 3, yHi);
+        ctx.lineTo(cx + 3, yHi);
+        ctx.moveTo(cx - 3, yLo);
+        ctx.lineTo(cx + 3, yLo);
+        ctx.stroke();
+      }
+      hits.push({ x: x + bw / 2, y, tip: d.tip, id: null });
+    });
+    bind(canvas, tip, w, height);
+  }
+
+  function bind(canvasEl, tipEl, w, height) {
+    canvasEl.onmousemove = (ev) => {
+      const rect = canvasEl.getBoundingClientRect();
+      const x = ev.clientX - rect.left;
+      const y = ev.clientY - rect.top;
+      let best = null, bestD = 18;
+      hits.forEach(h => {
+        const d = Math.hypot(h.x - x, h.y - y);
+        if (d < bestD) { best = h; bestD = d; }
+      });
+      if (!best || !best.tip) { tipEl.style.display = "none"; canvasEl.style.cursor = "default"; return; }
+      tipEl.style.display = "block";
+      tipEl.textContent = best.tip;
+      tipEl.style.left = Math.min(w - 180, x + 12) + "px";
+      tipEl.style.top = Math.max(4, y - 36) + "px";
+      canvasEl.style.cursor = best.id != null ? "pointer" : "default";
+      canvasEl._hit = best;
+    };
+    canvasEl.onmouseleave = () => { tipEl.style.display = "none"; };
+    canvasEl.onclick = () => {
+      if (canvasEl._hit && canvasEl._hit.id != null) selectRun(canvasEl._hit.id);
+    };
+  }
+
+  draw();
+  if (host._ro) host._ro.disconnect();
+  host._ro = new ResizeObserver(draw);
+  host._ro.observe(wrap);
+}
+
+function formatTick(v, digits) {
+  if (Math.abs(v) >= 100) return String(Math.round(v));
+  if (digits != null) return Number(v).toFixed(digits);
+  if (Math.abs(v) >= 10) return String(Math.round(v * 10) / 10);
+  return String(Math.round(v * 100) / 100);
+}
+
+function pointRuns(rows, colorFn, openFn) {
+  return rows.map(r => ({
+    x: r.t, y: null, id: r.id, tip: tipRun(r), color: colorFn ? colorFn(r) : undefined, open: openFn ? openFn(r) : false
+  }));
+}
+
+function renderStats(rows) {
+  const host = document.getElementById("stats");
+  const items = [
+    [rows.length, "Runs in view"],
+    [fmt(median(rows.map(r => r.hr)), 0), "Median HR"],
+    [fmt(median(rows.map(r => r.pwr)), 0) + " W", "Median power"],
+    [fmtPace(median(rows.map(r => r.pace))), "Median pace /km"],
+    [fmt(median(rows.map(r => r.ef)), 2), "Median EF W/bpm"]
+  ];
+  host.innerHTML = items.map(it => '<div class="stat"><b>' + esc(it[0]) + '</b><span>' + esc(it[1]) + '</span></div>').join("");
+}
+
+function renderTrends() {
+  const rows = baseRuns();
+  const common = {
+    xType: "time",
+    height: 260,
+    legend: [
+      { name: ERA.before, color: COL.early },
+      { name: ERA.after, color: COL.late }
+    ]
+  };
+  function split(yKey) {
+    return ["early", "late"].map(era => ({
+      name: era,
+      color: era === "early" ? COL.early : COL.late,
+      kind: "scatter",
+      radius: 4,
+      data: rows.filter(r => (era === "late") === isLate(r)).map(r => ({ x: r.t, y: r[yKey], id: r.id, tip: tipRun(r) }))
+    }));
+  }
+  mount(document.getElementById("trendHr"), { ...common, yLabel: "Heart rate (bpm)", yDigits: 0, series: split("hr") });
+  mount(document.getElementById("trendPwr"), { ...common, yLabel: "Running power (W)", yDigits: 0, series: split("pwr") });
+  const paces = rows.map(r => r.pace).filter(v => v != null);
+  const paceDomain = paces.length ? [Math.max(...paces) + 0.4, Math.min(...paces) - 0.4] : [12, 5];
+  mount(document.getElementById("trendPace"), { ...common, yLabel: "Pace (min/km), faster up", yDigits: 1, yDomain: paceDomain, series: split("pace") });
+}
+
+function renderScatters() {
+  const rows = baseRuns();
+  const legend = [
+    { name: ERA.before, color: COL.early },
+    { name: ERA.after, color: COL.late }
+  ];
+  function series(xKey, yKey) {
+    return ["early", "late"].map(era => ({
+      color: era === "early" ? COL.early : COL.late,
+      kind: "scatter",
+      radius: 4,
+      data: rows.filter(r => (era === "late") === isLate(r)).map(r => ({ x: r[xKey], y: r[yKey], id: r.id, tip: tipRun(r) }))
+    }));
+  }
+  mount(document.getElementById("scPwr"), {
+    height: 320, xType: "linear", xAxis: "Heart rate (bpm)", yLabel: "Power (W)", xDigits: 0, yDigits: 0, legend,
+    series: series("hr", "pwr")
+  });
+  document.getElementById("scPwr").querySelector(".legend").insertAdjacentHTML("beforebegin", "<h3>Power against heart rate</h3>");
+  const paces = rows.map(r => r.pace).filter(v => v != null);
+  mount(document.getElementById("scPace"), {
+    height: 320, xAxis: "Heart rate (bpm)", yLabel: "Pace (min/km), faster up", yDigits: 1, xDigits: 0, legend,
+    yDomain: paces.length ? [Math.max(...paces) + 0.3, Math.min(...paces) - 0.3] : [12, 5],
+    series: series("hr", "pace")
+  });
+  document.getElementById("scPace").querySelector(".legend").insertAdjacentHTML("beforebegin", "<h3>Pace against heart rate</h3>");
+}
+
+function renderEF() {
+  const rows = baseRuns().filter(r => r.ef != null && r.band);
+  const bands = BAND_LABELS;
+  mount(document.getElementById("efChart"), {
+    height: 340,
+    xType: "time",
+    yLabel: "Efficiency factor (W/bpm)",
+    yDigits: 2,
+    legend: bands.filter(b => rows.some(r => r.band === b)).map(b => ({ name: b + " bpm", color: COL.bands[b] })),
+    series: bands.map(b => ({
+      color: COL.bands[b],
+      kind: "scatter",
+      radius: 4.5,
+      data: rows.filter(r => r.band === b).map(r => ({ x: r.t, y: r.ef, id: r.id, tip: tipRun(r) + "\nBand " + r.band }))
+    }))
+  });
+}
+
+function renderDec() {
+  const rows = decRuns();
+  function series(key, titleHost) {
+    return {
+      height: 320,
+      xType: "time",
+      yLabel: "Decoupling (%)",
+      yDigits: 0,
+      legend: [
+        { name: "Steady pace", color: COL.ink },
+        { name: "Variable pace", color: COL.ink, open: true }
+      ],
+      hlines: [
+        { y: LIM, color: COL.hr, label: "+" + LIM + "%" },
+        { y: -LIM, color: COL.hr, label: "−" + LIM + "%" },
+        { y: 0, color: COL.mark }
+      ],
+      series: [{
+        color: COL.ink,
+        kind: "scatter",
+        radius: 4.5,
+        data: rows.filter(r => r[key] != null).map(r => ({
+          x: r.t, y: r[key], id: r.id, open: !r.steady, tip: tipRun(r)
+        }))
+      }]
+    };
+  }
+  const left = series("decP");
+  const right = series("decS");
+  mount(document.getElementById("decP"), left);
+  mount(document.getElementById("decS"), right);
+  const a = document.getElementById("decP");
+  const b = document.getElementById("decS");
+  if (a.querySelector(".legend")) a.querySelector(".legend").insertAdjacentHTML("beforebegin", "<h3>Power : heart rate</h3>");
+  if (b.querySelector(".legend")) b.querySelector(".legend").insertAdjacentHTML("beforebegin", "<h3>Pace : heart rate</h3>");
+}
+
+function tracePoints(run, key) {
+  const t = run.trace;
+  const out = [];
+  for (let i = 0; i < t.min.length; i++) {
+    const y = t[key][i];
+    out.push({
+      x: t.min[i],
+      y: y,
+      tip: y == null ? null : ("Minute " + fmt(t.min[i], 0) + "\nHR " + fmt(t.hr[i], 0) + " bpm · " + fmt(t.pwr[i], 0) + " W · " + fmtPace(t.pace[i]) + "/km")
+    });
+  }
+  return out;
+}
+
+function selectRun(id) {
+  const sel = document.getElementById("runPick");
+  sel.value = String(id);
+  renderSession();
+  document.getElementById("session").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderSession() {
+  const sel = document.getElementById("runPick");
+  const rows = baseRuns().filter(r => r.trace && r.trace.min && r.trace.min.length);
+  const current = sel.value;
+  sel.innerHTML = rows.slice().sort((a, b) => a.t - b.t).map(r => '<option value="' + r.id + '">' + r.label + " · " + fmtPace(r.pace) + "/km</option>").join("");
+  let run = rows.find(r => String(r.id) === current);
+  if (!run) run = rows.slice().sort((a, b) => b.dur - a.dur)[0];
+  if (!run) {
+    document.getElementById("runBlurb").textContent = "This filter has no run with a trace.";
+    mount(document.getElementById("runHrPwr"), { series: [] });
+    mount(document.getElementById("runPace"), { series: [] });
+    return;
+  }
+  sel.value = String(run.id);
+  const pace1 = run.spd1 ? fmtPace(60 / run.spd1) : "—";
+  const pace2 = run.spd2 ? fmtPace(60 / run.spd2) : "—";
+  document.getElementById("runBlurb").textContent =
+    run.date + ". " + fmt(run.dur, 0) + " min. " + fmt(run.dist, 2) + " km. "
+    + (run.steadyPace ? "The pace is steady." : "The pace changes.")
+    + (run.indoor ? " Indoor." : "")
+    + (run.temp == null ? "" : " Temperature is " + fmt(run.temp, 0) + "°C.")
+    + " First half: " + fmt(run.hr1, 0) + " bpm at " + fmt(run.pwr1, 0) + " W (" + pace1 + "/km)."
+    + " Second half: " + fmt(run.hr2, 0) + " bpm at " + fmt(run.pwr2, 0) + " W (" + pace2 + "/km)."
+    + " Power decoupling: " + (run.decP == null ? "not available." : fmt(run.decP, 1) + "%.")
+    + " Pace decoupling: " + (run.decS == null ? "not available." : fmt(run.decS, 1) + "%.");
+  const hr = tracePoints(run, "hr").filter(d => d.y != null);
+  const hrVals = hr.map(d => d.y);
+  const y0 = hrVals.length ? Math.min(...hrVals) - 12 : 60;
+  const y1 = hrVals.length ? Math.max(...hrVals) + 12 : 200;
+  const hrLine = tracePoints(run, "hr");
+  mount(document.getElementById("runHrPwr"), {
+    height: 340,
+    yLabel: "Heart rate (bpm)",
+    y2Label: "Power (W)",
+    xAxis: "Minutes from the start",
+    yDigits: 0,
+    y2Digits: 0,
+    xDigits: 0,
+    y2Color: COL.pwr,
+    yDomain: [y0, y1],
+    legend: [
+      { name: "Heart rate", color: COL.hr },
+      { name: "±5 bpm, Apple stated", color: "rgba(155,44,44,0.45)" },
+      { name: "±10 bpm, Apple stated", color: "rgba(155,44,44,0.25)" },
+      { name: "Power, no watt band", color: COL.pwr }
+    ],
+    ribbons: [
+      { data: hrLine, delta: 10, color: COL.band10 },
+      { data: hrLine, delta: 5, color: COL.band5 }
+    ],
+    series: [
+      { color: COL.hr, kind: "line", width: 1.8, maxGap: 1.2, data: hrLine, axis: "y" },
+      { color: COL.pwr, kind: "line", width: 1.5, maxGap: 1.2, data: tracePoints(run, "pwr"), axis: "y2" }
+    ]
+  });
+  const pacePts = tracePoints(run, "pace");
+  const paceVals = pacePts.map(d => d.y).filter(v => v != null);
+  mount(document.getElementById("runPace"), {
+    height: 260,
+    yLabel: "Pace (min/km), faster up",
+    xAxis: "Minutes from the start",
+    yDigits: 1,
+    xDigits: 0,
+    yDomain: paceVals.length ? [Math.max(...paceVals) * 1.08, Math.min(...paceVals) * 0.92] : [12, 5],
+    legend: run.indoor
+      ? [{ name: "Pace, indoor: no GPS band", color: COL.pace }]
+      : [{ name: "Pace", color: COL.pace }, { name: "About ±5% outdoor distance error", color: "rgba(29,107,69,0.45)" }],
+    fracBands: run.indoor ? [] : [{ data: pacePts, frac: 0.05, color: COL.paceBand }],
+    series: [{ color: COL.pace, kind: "line", width: 1.8, maxGap: 1.2, data: pacePts }]
+  });
+}
+
+function renderDurability() {
+  const rows = decRuns();
+  mount(document.getElementById("durChart"), {
+    height: 320,
+    xAxis: "Duration (min)",
+    xDigits: 0,
+    yDigits: 0,
+    yLabel: "Power decoupling (%)",
+    legend: [
+      { name: "Steady", color: COL.ink },
+      { name: "Variable", color: COL.ink, open: true }
+    ],
+    hlines: [{ y: LIM, color: COL.hr, label: "+" + LIM + "%" }, { y: -LIM, color: COL.hr, label: "−" + LIM + "%" }, { y: 0, color: COL.mark }],
+    series: [{
+      color: COL.ink,
+      kind: "scatter",
+      radius: 4.5,
+      data: rows.map(r => ({ x: r.dur, y: r.decP, id: r.id, open: !r.steady, tip: tipRun(r) }))
+    }]
+  });
+}
+
+function renderMMP() {
+  const rows = PAY.mmp.filter(r => r.pwr != null);
+  mount(document.getElementById("mmpPwr"), {
+    height: 280,
+    xAxis: "Duration (min)",
+    yLabel: "Best power (W)",
+    yDigits: 0,
+    xDigits: 0,
+    legend: [{ name: "Best running power", color: COL.pwr }],
+    series: [{
+      color: COL.pwr, kind: "line", width: 1.8,
+      data: rows.map(r => ({ x: r.min, y: r.pwr, tip: r.min + " min · " + fmt(r.pwr, 0) + " W" }))
+    }, {
+      color: COL.pwr, kind: "scatter", radius: 4,
+      data: rows.map(r => ({ x: r.min, y: r.pwr, tip: r.min + " min · " + fmt(r.pwr, 0) + " W" }))
+    }]
+  });
+  const spd = PAY.mmp.filter(r => r.spd != null);
+  mount(document.getElementById("mmpSpd"), {
+    height: 280,
+    xAxis: "Duration (min)",
+    yLabel: "Best speed (km/h)",
+    yDigits: 1,
+    xDigits: 0,
+    legend: [{ name: "Best speed, pace in the tooltip", color: COL.pace }],
+    series: [{
+      color: COL.pace, kind: "line", width: 1.8,
+      data: spd.map(r => ({ x: r.min, y: r.spd, tip: r.min + " min · " + fmt(r.spd, 1) + " km/h · " + fmtPace(r.pace) + "/km" }))
+    }, {
+      color: COL.pace, kind: "scatter", radius: 4,
+      data: spd.map(r => ({ x: r.min, y: r.spd, tip: r.min + " min · " + fmt(r.spd, 1) + " km/h · " + fmtPace(r.pace) + "/km" }))
+    }]
+  });
+  const a = document.getElementById("mmpPwr");
+  const b = document.getElementById("mmpSpd");
+  if (a.querySelector(".legend")) a.querySelector(".legend").insertAdjacentHTML("beforebegin", "<h3>Power</h3>");
+  if (b.querySelector(".legend")) b.querySelector(".legend").insertAdjacentHTML("beforebegin", "<h3>Speed</h3>");
+}
+
+function renderVolume() {
+  const rows = PAY.months;
+  const keys = [
+    { key: "run_h", name: "Run", color: COL.hr },
+    { key: "cycle_h", name: "Ride", color: COL.pwr },
+    { key: "walk_h", name: "Walk", color: "#c4a15a" },
+    { key: "hiit_h", name: "HIIT", color: "#6a4c93" },
+    { key: "strength_h", name: "Strength", color: "#3d6b66" },
+    { key: "other_h", name: "Other", color: "#b7afa4" }
+  ];
+  mount(document.getElementById("volChart"), {
+    kind: "stacked",
+    height: 320,
+    rows,
+    keys,
+    y2key: "run_km",
+    y2Color: COL.ink,
+    yLabel: "Hours",
+    y2Label: "Run km",
+    yDigits: 0,
+    y2Digits: 0,
+    xLabels: rows.map(r => r.m.slice(2)),
+    legend: keys.map(k => ({ name: k.name, color: k.color })).concat([{ name: "Run km", color: COL.ink }])
+  });
+  const kcal = rows.filter(r => (r.ped_kcal || 0) > 0);
+  mount(document.getElementById("kcalChart"), {
+    kind: "bars",
+    height: 260,
+    color: COL.pace,
+    whisker: 0.09,
+    yLabel: "Walk + run kcal",
+    yDigits: 0,
+    xLabels: kcal.map(r => r.m.slice(2)),
+    data: kcal.map(r => ({ y: r.ped_kcal, tip: r.m + "\n" + Math.round(r.ped_kcal) + " kcal\nApple ±9%: " + Math.round(r.ped_kcal * 0.91) + "–" + Math.round(r.ped_kcal * 1.09) })),
+    legend: [{ name: "Walk + run active kcal", color: COL.pace }, { name: "Apple ±9%", color: COL.ink }]
+  });
+}
+
+function economyChart(host, key, label, digits) {
+  const rows = baseRuns().filter(r => r[key] != null && r.pace != null);
+  const paces = rows.map(r => r.pace);
+  mount(document.getElementById(host), {
+    height: 260,
+    xAxis: "Pace (min/km), faster to the left",
+    yLabel: label,
+    yDigits: digits,
+    xDigits: 1,
+    xDomain: paces.length ? [Math.min(...paces) - 0.3, Math.max(...paces) + 0.3] : [5, 12],
+    legend: [{ name: ERA.before, color: COL.early }, { name: ERA.after, color: COL.late }],
+    series: ["early", "late"].map(era => ({
+      color: era === "early" ? COL.early : COL.late,
+      kind: "scatter",
+      radius: 4,
+      data: rows.filter(r => (era === "late") === isLate(r)).map(r => ({
+        x: r.pace, y: r[key], id: r.id, tip: tipRun(r) + "\n" + label + " " + r[key]
+      }))
+    }))
+  });
+}
+
+function renderEconomy() {
+  economyChart("gctChart", "gct", "Ground contact (ms)", 0);
+  economyChart("voChart", "vo", "Vertical oscillation (cm)", 1);
+  economyChart("strideChart", "stride", "Stride length (m)", 2);
+  [["gctChart", "Ground contact time"], ["voChart", "Vertical oscillation"], ["strideChart", "Stride length"]].forEach(pair => {
+    const el = document.getElementById(pair[0]);
+    const leg = el.querySelector(".legend");
+    if (leg) leg.insertAdjacentHTML("beforebegin", "<h3>" + pair[1] + "</h3>");
+  });
+}
+
+function renderHeat() {
+  const rows = (steadyOnly() ? baseRuns().filter(r => r.steady) : baseRuns()).filter(r => r.temp != null && r.decP != null);
+  mount(document.getElementById("heatChart"), {
+    height: 300,
+    xAxis: "Temperature (°C)",
+    xDigits: 0,
+    yDigits: 0,
+    yLabel: "Power decoupling (%)",
+    legend: Object.keys(COL.bands).map(b => ({ name: b + " bpm", color: COL.bands[b] })),
+    hlines: [{ y: LIM, color: COL.hr, label: "+" + LIM + "%" }, { y: -LIM, color: COL.hr }, { y: 0, color: COL.mark }],
+    series: Object.keys(COL.bands).map(b => ({
+      color: COL.bands[b],
+      kind: "scatter",
+      radius: 4.5,
+      data: rows.filter(r => r.band === b).map(r => ({
+        x: r.temp, y: r.decP, id: r.id,
+        tip: tipRun(r) + "\n" + fmt(r.temp, 0) + "°C" + (r.hum == null ? "" : " · " + fmt(r.hum, 0) + "% humidity")
+      }))
+    }))
+  });
+}
+
+function rolling(rows, days) {
+  const out = [];
+  for (let i = 0; i < rows.length; i++) {
+    const slice = [];
+    for (let j = i; j >= 0; j--) {
+      if (rows[i].t - rows[j].t > days * 86400000) break;
+      slice.push(rows[j].v);
+    }
+    if (slice.length >= 3) out.push({ x: rows[i].t, y: median(slice), tip: "14-day median " + fmt(median(slice), 1) });
+  }
+  return out;
+}
+
+function paceValue(text) {
+  const p = String(text).split(":").map(Number);
+  return p[0] + p[1] / 60;
+}
+
+function renderReadiness() {
+  const kp = CFG.couzens.known_pace;
+  const lo = paceValue(kp[0]), hi = paceValue(kp[1]);
+  const pct = CFG.couzens.readiness_band;
+  const easy = baseRuns().filter(r => r.pace != null && r.pace >= lo && r.pace <= hi);
+  const med = median(easy.map(r => r.hr));
+  const band = med == null ? null : med * pct / 100;
+  const note = document.getElementById("readyNote");
+  note.textContent = med == null
+    ? "This filter has no run between " + kp[0] + " and " + kp[1] + " per km. The known-pace heart-rate check (C15) is empty."
+    : "Runs between " + kp[0] + " and " + kp[1] + " per km have a median heart rate of " + fmt(med, 0)
+      + " bpm. The count is " + easy.length + " runs. The dashed lines are the Couzens ±" + pct + " percent band (C15), about ±" + fmt(band, 0)
+      + " bpm. Resting heart rate, walking heart rate, SDNN, the VO2 estimate, and cardio recovery are daily values. They do not use the run filter. SDNN is not a morning rMSSD value.";
+  mount(document.getElementById("easyHr"), {
+    height: 260,
+    xType: "time",
+    yLabel: "Heart rate (bpm)",
+    yDigits: 0,
+    legend: [{ name: kp[0] + "–" + kp[1] + " /km", color: COL.hr }, { name: "Median and ±" + pct + "%", color: COL.mark }],
+    hlines: med == null ? [] : [
+      { y: med, color: COL.ink, label: "median" },
+      { y: med + band, color: COL.hr, label: "+" + pct + "%" },
+      { y: med - band, color: COL.hr, label: "−" + pct + "%" }
+    ],
+    series: [{
+      color: COL.hr, kind: "scatter", radius: 4,
+      data: easy.map(r => ({ x: r.t, y: r.hr, id: r.id, tip: tipRun(r) }))
+    }]
+  });
+  function daily(host, rows, label, color, digits, extra) {
+    mount(document.getElementById(host), {
+      height: 240,
+      xType: "time",
+      yLabel: label,
+      yDigits: digits,
+      legend: extra || [{ name: label, color }],
+      series: [{
+        color, kind: "line", width: 1.4, maxGap: 5 * 86400000,
+        data: rows.map(r => ({ x: r.t, y: r.v, tip: label + " " + r.v }))
+      }].concat(extra ? [{
+        color: COL.ink, kind: "line", width: 2,
+        data: rolling(rows, 14)
+      }] : [])
+    });
+  }
+  daily("rhrChart", PAY.rhr, "Resting HR (bpm)", COL.hr, 0, [{ name: "Daily", color: COL.hr }, { name: "14-day median", color: COL.ink }]);
+  daily("hrvChart", PAY.hrv, "SDNN (ms)", "#6a4c93", 0, [{ name: "Daily median", color: "#6a4c93" }, { name: "14-day median", color: COL.ink }]);
+  daily("vo2Chart", PAY.vo2, "VO2 estimate", COL.pwr, 1);
+  daily("whrChart", PAY.whr, "Walking HR (bpm)", "#c4a15a", 0, [{ name: "Daily", color: "#c4a15a" }, { name: "14-day median", color: COL.ink }]);
+  daily("hrrChart", PAY.hrr, "Cardio recovery (bpm)", COL.pace, 0);
+}
+
+function renderLog() {
+  const rows = baseRuns().slice().sort((a, b) => b.t - a.t);
+  document.getElementById("logBody").innerHTML = rows.map(r =>
+    "<tr data-id=\"" + r.id + "\"><td>" + r.date + "</td><td>" + (r.steady ? "Yes" : "") + "</td><td>"
+    + fmt(r.dur, 0) + "</td><td>" + fmt(r.hr, 0) + "</td><td>" + fmt(r.pwr, 0) + "</td><td>"
+    + fmtPace(r.pace) + "</td><td>" + fmt(r.ef, 2) + "</td><td>" + fmt(r.decP, 1) + "</td><td>"
+    + fmt(r.decS, 1) + "</td><td>" + fmt(r.temp, 0) + "</td><td>" + fmt(r.dist, 2) + "</td></tr>"
+  ).join("");
+}
+
+function lcFirst(s) {
+  if (!s || /^(January|February|March|April|May|June|July|August|September|October|November|December)\b/.test(s)) return s;
+  return s[0].toLowerCase() + s.slice(1);
+}
+
+function writeFinding() {
+  const f = PAY.finding;
+  const before = lcFirst(ERA.before), after = lcFirst(ERA.after);
+  const runsAre = n => n + (n === 1 ? " run is" : " runs are");
+  const band = f.bandEarlyN < 5
+    ? ERA.before + ", " + runsAre(f.bandEarlyN) + " in the " + EASY_LABEL + " band, too few to compare (C4). " + ERA.after + ", " + runsAre(f.bandLateN) + " in that band, with a median efficiency factor of " + f.bandLateEf + " W per bpm."
+    : "In the " + EASY_LABEL + " band, the median efficiency factor is " + f.bandEarlyEf + " W per bpm " + before + " (" + f.bandEarlyN + " runs) and " + f.bandLateEf + " " + after + " (" + f.bandLateN + " runs) (C4).";
+  const dec = f.steady40N
+    ? " On steady runs of " + CFG.couzens.long_run_min + " minutes or more, the median power decoupling is " + f.steady40Dec + " percent over " + f.steady40N + " runs (C2)."
+    : "";
+  const ratio = (a, b) => (a && b) ? Math.round((b / a - 1) * 100) : null;
+  const dHr = ratio(f.earlyHr, f.lateHr), dPw = ratio(f.earlyPwr, f.latePwr);
+  const why = dHr != null && dPw != null
+    ? (Math.abs(dPw) > Math.abs(dHr)
+      ? " Power changes " + dPw + "% and heart rate " + dHr + "%. The mixed efficiency factor follows the change of pace, so read it inside one band."
+      : " Heart rate changes " + dHr + "% and power " + dPw + "%.")
+    : "";
+  document.getElementById("finding").innerHTML =
+    "<p>Medians of Apple Watch runs of " + CFG.filters.min_steady_min + " minutes or more. " + esc(ERA.before) + ": " + f.earlyHr + " bpm, " + f.earlyPwr + " W, " + f.earlyPace + " per km, efficiency factor " + f.earlyEf + " W per bpm, " + f.nEarly + " runs. "
+    + esc(ERA.after) + ": " + f.lateHr + " bpm, " + f.latePwr + " W, " + f.latePace + " per km, efficiency factor " + f.lateEf + " W per bpm, " + f.nLate + " runs." + why + "</p><p>"
+    + esc(band + dec) + "</p>";
+  const hw = (PAY.hardware || []).map(pair => pair[0] + " (" + pair[1] + ")").join(", ");
+  document.getElementById("lede").textContent = "Apple Watch runs with heart rate, power, and pace, " + (f.dateMin || "") + " to " + (f.dateMax || "") + ". " + f.nInstrumented + " runs have all three.";
+  document.getElementById("asOf").textContent = "Data through " + PAY.asOf;
+  const mass = PAY.mass ? " Latest body mass is " + PAY.mass.kg + " kg on " + PAY.mass.date + "." : "";
+  document.getElementById("foot").textContent = "Source: Apple Health export, data through " + PAY.asOf + ". Build " + PAY.buildId + ". Watch hardware on these runs: " + (hw || "not recorded") + "." + mass + " A heart rate on a run is a mean. The 5 bpm and 10 bpm shades are Apple sample limits. They are not a confidence interval for the mean.";
+}
+
+
+function renderRecovery() {
+  const R = PAY.recovery;
+  if (!R) return;
+  const nights = R.nights || [];
+  const load = R.load || [];
+  const byId = {};
+  (R.joins || []).forEach(j => { byId[j.id] = j; });
+
+  function rollSleep(days) {
+    const out = [];
+    for (let i = 0; i < nights.length; i++) {
+      const slice = [];
+      for (let j = i; j >= 0; j--) {
+        if (nights[i].t - nights[j].t > days * 86400000) break;
+        slice.push(nights[j].asleep);
+      }
+      if (slice.length >= 5) {
+        const m = median(slice);
+        out.push({ x: nights[i].t, y: m, tip: "14-day median " + fmt(m, 1) + " h" });
+      }
+    }
+    return out;
+  }
+
+  mount(document.getElementById("sleepChart"), {
+    height: 280,
+    xType: "time",
+    yLabel: "Sleep (h)",
+    yDigits: 1,
+    legend: [
+      { name: "Asleep", color: COL.pwr },
+      { name: "14-day median", color: COL.ink },
+      { name: "Deep", color: "#6a4c93" },
+      { name: "REM", color: COL.pace },
+      { name: "7 h", color: COL.hr }
+    ],
+    hlines: [{ y: 7, color: COL.hr, label: "7 h" }],
+    series: [
+      {
+        color: COL.pwr, kind: "line", width: 1.15, maxGap: 3 * 86400000,
+        data: nights.map(n => ({
+          x: n.t, y: n.asleep,
+          tip: n.date + "\nAsleep " + fmt(n.asleep, 1) + " h\nCore " + fmt(n.core, 1)
+            + " · Deep " + fmt(n.deep, 1) + " · REM " + fmt(n.rem, 1) + "\nAwake " + fmt(n.awake, 1) + " h"
+        }))
+      },
+      { color: COL.ink, kind: "line", width: 2.1, data: rollSleep(14) },
+      {
+        color: "#6a4c93", kind: "line", width: 1.15, maxGap: 3 * 86400000,
+        data: nights.map(n => ({ x: n.t, y: n.deep, tip: n.date + "\nDeep " + fmt(n.deep, 1) + " h" }))
+      },
+      {
+        color: COL.pace, kind: "line", width: 1.15, maxGap: 3 * 86400000,
+        data: nights.map(n => ({ x: n.t, y: n.rem, tip: n.date + "\nREM " + fmt(n.rem, 1) + " h" }))
+      }
+    ]
+  });
+
+  mount(document.getElementById("easyHardChart"), {
+    height: 280,
+    xType: "time",
+    yLabel: "Easy hours, 7 days",
+    y2Label: "Hard hours, 7 days",
+    y2Color: COL.hr,
+    yDigits: 0,
+    y2Digits: 1,
+    legend: [
+      { name: "Easy, mean HR under 150", color: COL.pace },
+      { name: "Hard, mean HR 150 or more", color: COL.hr }
+    ],
+    series: [
+      {
+        color: COL.pace, kind: "line", width: 1.8,
+        data: load.map(d => ({ x: d.t, y: d.easy7, tip: "Easy " + fmt(d.easy7, 1) + " h in 7 days" }))
+      },
+      {
+        color: COL.hr, kind: "line", width: 1.8, axis: "y2",
+        data: load.map(d => ({ x: d.t, y: d.hard7, tip: "Hard " + fmt(d.hard7, 1) + " h in 7 days" }))
+      }
+    ]
+  });
+
+  mount(document.getElementById("stressChart"), {
+    height: 280,
+    xType: "time",
+    yLabel: "Stress hours per week",
+    yDigits: 0,
+    legend: [
+      { name: "Acute, 7 days", color: COL.hr },
+      { name: "Chronic, 28 days", color: COL.ink }
+    ],
+    series: [
+      {
+        color: COL.hr, kind: "line", width: 1.6,
+        data: load.map(d => ({ x: d.t, y: d.acute, tip: "Acute " + fmt(d.acute, 1) + " stress hours" }))
+      },
+      {
+        color: COL.ink, kind: "line", width: 2,
+        data: load.filter(d => d.chronic != null).map(d => ({
+          x: d.t, y: d.chronic, tip: "Chronic " + fmt(d.chronic, 1) + " stress hours"
+        }))
+      }
+    ]
+  });
+
+  const linked = baseRuns().filter(r => byId[r.id] && r.ef != null);
+  const easy = linked.filter(isEasy);
+  const other = linked.filter(r => !isEasy(r));
+
+  function sleepTip(r) {
+    const s = byId[r.id];
+    return tipRun(r) + "\nPrevious night " + fmt(s.sleep, 1) + " h asleep\nDeep " + fmt(s.deep, 1) + " h · REM " + fmt(s.rem, 1) + " h";
+  }
+  function pair(list, xKey, yKey) {
+    return list.map(r => ({
+      x: xKey === "sleep" ? byId[r.id].sleep : r[xKey],
+      y: r[yKey],
+      id: r.id,
+      tip: xKey === "sleep"
+        ? sleepTip(r)
+        : tipRun(r) + (r.temp == null ? "" : "\n" + fmt(r.temp, 0) + "°C") + (r.hum == null ? "" : " · " + fmt(r.hum, 0) + "% humidity")
+    }));
+  }
+  const legend = [
+    { name: EASY_LABEL, color: COL.late },
+    { name: "Other heart rates", color: COL.muted }
+  ];
+  mount(document.getElementById("sleepEfChart"), {
+    height: 280,
+    xAxis: "Previous night asleep (h)",
+    yLabel: "Efficiency factor (W/bpm)",
+    xDigits: 0,
+    yDigits: 2,
+    legend,
+    series: [
+      { color: COL.late, kind: "scatter", radius: 4.5, data: pair(easy, "sleep", "ef") },
+      { color: COL.muted, kind: "scatter", radius: 3.5, data: pair(other, "sleep", "ef") }
+    ]
+  });
+  mount(document.getElementById("sleepPwrChart"), {
+    height: 280,
+    xAxis: "Previous night asleep (h)",
+    yLabel: "Power (W)",
+    xDigits: 0,
+    yDigits: 0,
+    legend,
+    series: [
+      { color: COL.late, kind: "scatter", radius: 4.5, data: pair(easy, "sleep", "pwr") },
+      { color: COL.muted, kind: "scatter", radius: 3.5, data: pair(other, "sleep", "pwr") }
+    ]
+  });
+  mount(document.getElementById("tempEfChart"), {
+    height: 280,
+    xAxis: "Temperature (°C)",
+    yLabel: "Efficiency factor (W/bpm)",
+    xDigits: 0,
+    yDigits: 2,
+    legend,
+    series: [
+      { color: COL.late, kind: "scatter", radius: 4.5, data: pair(easy.filter(r => r.temp != null), "temp", "ef") },
+      { color: COL.muted, kind: "scatter", radius: 3.5, data: pair(other.filter(r => r.temp != null), "temp", "ef") }
+    ]
+  });
+  mount(document.getElementById("humEfChart"), {
+    height: 280,
+    xAxis: "Humidity (%)",
+    yLabel: "Efficiency factor (W/bpm)",
+    xDigits: 0,
+    yDigits: 2,
+    legend,
+    series: [
+      { color: COL.late, kind: "scatter", radius: 4.5, data: pair(easy.filter(r => r.hum != null), "hum", "ef") },
+      { color: COL.muted, kind: "scatter", radius: 3.5, data: pair(other.filter(r => r.hum != null), "hum", "ef") }
+    ]
+  });
+}
+
+function weekMs(text) { return Date.parse(text + "T00:00:00Z"); }
+function pill(result) {
+  const label = { pass: "Pass", partial: "Partial", fail: "Not yet", na: "No data" }[result] || result;
+  return '<span class="pill ' + esc(result) + '">' + label + "</span>";
+}
+function ruleTag(id) { return '<span class="rule">' + esc(id) + "</span>"; }
+function checkRows(list) {
+  return list.map(c => "<tr><td>" + ruleTag(c.rule) + '</td><td class="wrap">' + esc(c.name) + "</td><td>" + pill(c.result)
+    + '</td><td class="wrap">' + esc(c.evidence) + "</td></tr>").join("");
+}
+function statHtml(value, label) { return '<div class="stat"><b>' + esc(value) + "</b><span>" + esc(label) + "</span></div>"; }
+function secPace(s) { return s == null ? "—" : fmtPace(s / 60); }
+function band(key) { return EV.bands.find(b => b.key === key); }
+
+function fillConfig() {
+  document.querySelectorAll("[data-cfg]").forEach(el => {
+    const v = el.dataset.cfg.split(".").reduce((o, k) => (o == null ? o : o[k]), CFG);
+    el.textContent = v == null ? "" : v;
+  });
+  document.querySelectorAll(".era-before").forEach(el => { el.textContent = lcFirst(ERA.before); });
+  document.querySelectorAll(".era-after").forEach(el => { el.textContent = lcFirst(ERA.after); });
+  const d = PAY.dropped || {};
+  const parts = Object.keys(d).map(k => d[k] + " " + (k === "duplicate" ? "exact duplicates" : "copies from " + k.split(":")[1]));
+  document.getElementById("droppedNote").textContent = parts.length ? "Removed before counting (M1): " + parts.join(", ") + "." : "";
+}
+
+function renderCheckin() {
+  const r = EV.readiness;
+  const card = document.getElementById("readyCard");
+  card.className = "ready " + r.level;
+  const items = r.flags.concat(r.notes).map(f => "<li>" + ruleTag(f.rule) + esc(f.text) + "</li>");
+  card.innerHTML = '<div class="src">Readiness for ' + esc(r.date) + (r.journal ? ", with your journal entry" : ". No journal entry for this day yet") + "</div>"
+    + '<div class="level">' + esc(r.text) + "</div><ul>" + items.join("") + "</ul>";
+  const fresh = EV.newRuns.length ? [{ rule: "M5", text: EV.newRuns.length + " new run" + (EV.newRuns.length === 1 ? "" : "s") + " since the last sync." }] : [];
+  const acts = fresh.concat(EV.actions);
+  document.getElementById("actions").innerHTML = acts.length
+    ? acts.map(a => "<li>" + ruleTag(a.rule) + esc(a.text) + "</li>").join("")
+    : "<li>Nothing to change. Keep the plan.</li>";
+
+  const weeks = EV.weeks;
+  const cur = weeks[weeks.length - 1], prev = weeks[weeks.length - 2];
+  if (!cur) return;
+  const rows = [
+    ["Run hours", "runH", 1, true, "C8"],
+    ["Hard hours, all workouts", "hardH", 1, null, "C7"],
+    ["Runs", "runs", 0, null, "P1"],
+    ["Speed days", "speedDays", 0, null, "C12"],
+    band("speed") && ["Minutes at 3K–10K pace now", "speed", 1, true, "C11"],
+    ["Minutes at goal 5K pace", "goal", 1, null, "P3"],
+    ["Minutes at sub-7 mile pace", "mile", 1, null, "P3"],
+    ["Longest run (min)", "longMin", 0, true, "C9"],
+    ["Long-run decoupling (%)", "longDec", 1, false, "C2"],
+    ["Easy pace (/km)", "easyPace", "pace", false, "C4"],
+    ["Easy EF (W/bpm)", "easyEf", 2, true, "C4"],
+    ["Median sleep (h)", "sleep", 1, true, "C17"],
+    ["Resting HR (bpm)", "rhr", 0, false, "C17"],
+    ["SDNN (ms)", "hrv", 0, true, "C16"]
+  ].filter(Boolean);
+  const show = (v, d) => v == null ? "—" : d === "pace" ? fmtPace(v) : fmt(v, d);
+  function delta(a, b, d, upGood) {
+    if (a == null || b == null || Math.abs(a - b) < 1e-9) return "";
+    const diff = a - b;
+    const txt = d === "pace" ? (diff > 0 ? "+" : "−") + fmtPace(Math.abs(diff)) : (diff > 0 ? "+" : "") + fmt(diff, d);
+    if (upGood == null) return esc(txt);
+    const good = upGood ? diff > 0 : diff < 0;
+    return '<span class="' + (good ? "up" : "down") + '">' + esc(txt) + "</span>";
+  }
+  const day = Math.min(7, Math.round((Date.parse(PAY.asOfDate) - weekMs(cur.week)) / 86400000) + 1);
+  document.getElementById("weekCompare").innerHTML =
+    "<thead><tr><th>Metric</th><th>Week of " + esc(cur.week) + (cur.partial ? ", day " + day : "") + "</th><th>Week of " + esc(prev ? prev.week : "—")
+    + "</th><th>Change</th><th>Rule</th></tr></thead><tbody>"
+    + rows.map(x => "<tr><td>" + esc(x[0]) + "</td><td>" + show(cur[x[1]], x[2]) + "</td><td>" + show(prev && prev[x[1]], x[2])
+      + "</td><td>" + delta(cur[x[1]], prev && prev[x[1]], x[2], x[3]) + "</td><td>" + ruleTag(x[4]) + "</td></tr>").join("")
+    + "</tbody>";
+}
+
+function renderJournal() {
+  const form = document.getElementById("journalForm");
+  const note = document.getElementById("journalNote");
+  form.querySelectorAll("select:not([name=raceKm])").forEach(sel => {
+    sel.innerHTML = '<option value="">—</option>' + [1, 2, 3, 4, 5].map(v => '<option value="' + v + '">' + v + "</option>").join("");
+  });
+  const now = new Date();
+  form.date.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const entries = ((PAY.journal || {}).entries || []).slice().reverse();
+  const races = (PAY.journal || {}).races || [];
+  document.getElementById("journalBody").innerHTML = entries.length
+    ? entries.map(e => {
+      const race = races.filter(x => x.date === e.date).map(x => " Race: " + x.km + " km in " + x.time + (x.name ? ", " + x.name : "")).join("");
+      return "<tr><td>" + esc(e.date) + "</td>" + ["mood", "soreness", "fatigue", "stress", "sleepQuality"].map(k => "<td>" + esc(e[k] == null ? "—" : e[k]) + "</td>").join("")
+        + '<td class="wrap">' + esc((e.note || "") + race) + '</td><td><button class="link" type="button" data-del="' + esc(e.date) + '">Remove</button></td></tr>';
+    }).join("")
+    : '<tr><td colspan="8" class="wrap">No entries yet.</td></tr>';
+  if (!SERVED) {
+    form.querySelector("button[type=submit]").disabled = true;
+    note.textContent = "Open the page from the service to save entries.";
+    return;
+  }
+  async function post(body) {
+    note.textContent = "Saving.";
+    try {
+      const res = await fetch("/journal", { method: "POST", headers: { "Content-Type": "application/json", "X-Health-Report": "1" }, body: JSON.stringify(body) });
+      const out = await res.json();
+      note.textContent = out.message || "Saved.";
+      if (out.ok) location.reload();
+    } catch (err) {
+      note.textContent = "The service is not running. Double-click Health Report.command.";
+    }
+  }
+  form.addEventListener("submit", ev => {
+    ev.preventDefault();
+    const f = new FormData(form);
+    const body = { date: f.get("date"), note: f.get("note") };
+    ["mood", "soreness", "fatigue", "stress", "sleepQuality"].forEach(k => { if (f.get(k)) body[k] = Number(f.get(k)); });
+    if (f.get("raceKm") && f.get("raceTime")) body.race = { km: Number(f.get("raceKm")), time: f.get("raceTime"), name: f.get("raceName") };
+    post(body);
+  });
+  document.getElementById("journalBody").addEventListener("click", ev => {
+    const day = ev.target.dataset && ev.target.dataset.del;
+    if (day && confirm("Remove the journal entry for " + day + "?")) post({ delete: day });
+  });
+}
+
+function renderPlan() {
+  const plan = EV.plan;
+  const intro = document.getElementById("planIntro");
+  const cp = CFG.plan;
+  if (!plan) {
+    intro.innerHTML = '<p class="note">The ' + esc(cp.name) + " in config.json starts on " + esc(cp.start) + ". No plan week is active on " + esc(PAY.asOfDate) + ".</p>";
+    document.getElementById("nikeBody").innerHTML = "";
+    document.getElementById("couzensBody").innerHTML = "";
+    return;
+  }
+  const s = band("speed");
+  intro.innerHTML = '<p class="note">Week ' + plan.week + " of " + cp.weeks + " of the " + esc(cp.name) + ", which starts on " + esc(cp.start)
+    + ". The data runs to day " + plan.elapsed + " of this week. "
+    + (s ? "Your 3K–10K pace now is " + secPace(s.lo) + "–" + secPace(s.hi) + " per km, from the best 5 km (C11). " : "")
+    + "The goal paces come from the targets below. Couzens keeps goal pace as a short set and puts the bulk of speed at the pace you can hold now.</p>";
+  const w = EV.weeks[EV.weeks.length - 1];
+  document.getElementById("planStats").innerHTML =
+    statHtml(fmt(plan.nikeScore, 1) + " / " + plan.nikeMax, "Plan checks")
+    + statHtml(fmt(plan.couzensScore, 1) + " / " + plan.couzensMax, "Couzens checks")
+    + (s ? statHtml(fmt(w.speed, 1) + " min", "At 3K–10K pace now") : "")
+    + statHtml(fmt(w.goal, 1) + " min", "At goal 5K pace")
+    + statHtml(fmt(w.mile, 1) + " min", "At sub-7 mile pace")
+    + statHtml(fmt(w.runH, 1) + " h", "Run time this week");
+  document.getElementById("nikeTitle").textContent = cp.name + ": " + fmt(plan.nikeScore, 1) + " / " + plan.nikeMax;
+  document.getElementById("couzensTitle").textContent = "Couzens: " + fmt(plan.couzensScore, 1) + " / " + plan.couzensMax;
+  document.getElementById("nikeBody").innerHTML = checkRows(plan.nike);
+  document.getElementById("couzensBody").innerHTML = checkRows(plan.couzens);
+}
+
+function renderPlanWeeks() {
+  const planStart = weekMs(CFG.plan.start);
+  const from = planStart - 8 * 7 * 86400000;
+  const rows = EV.weeks.filter(w => weekMs(w.week) >= from).map(w => ({ ...w, t: weekMs(w.week) }));
+  if (!rows.length) return;
+  const tipWeek = (row, text) => "Week of " + row.week + (row.partial ? " (so far)" : "") + "\n" + text;
+  const keys = [["speed", COL.pace], ["goal", COL.pwr], ["mile", COL.hr], ["bridge", "#c4a15a"]].filter(k => band(k[0]));
+  mount(document.getElementById("weekSpeed"), {
+    height: 280,
+    xType: "time",
+    yLabel: "Minutes",
+    yDigits: 0,
+    legend: keys.map(k => ({ name: band(k[0]).name, color: k[1] })).concat([{ name: "Plan start", color: COL.ink }]),
+    hlines: [{ y: CFG.plan.bridge_target_min, color: COL.pace, label: CFG.plan.bridge_target_min + " min" }],
+    vlines: [{ x: planStart, color: COL.ink }],
+    series: keys.map(k => ({
+      color: k[1], kind: "line", width: 2,
+      data: rows.map(r => ({ x: r.t, y: r[k[0]], tip: tipWeek(r, band(k[0]).name + ": " + fmt(r[k[0]], 1) + " min") }))
+    }))
+  });
+  const peak = EV.peak;
+  const floor = peak ? peak.hours * CFG.couzens.speed_volume_floor : null;
+  const ceil = peak ? peak.hours * CFG.couzens.speed_volume_ceiling : null;
+  mount(document.getElementById("weekHours"), {
+    height: 260,
+    xType: "time",
+    yLabel: "Run hours",
+    yDigits: 1,
+    legend: [{ name: "Run hours", color: COL.pwr }].concat(peak ? [{ name: "66–80% of peak (C13)", color: COL.hr }] : []),
+    hlines: peak ? [{ y: floor, color: COL.hr, label: fmt(floor, 1) + " h" }, { y: ceil, color: COL.mark, label: fmt(ceil, 1) + " h" }] : [],
+    vlines: [{ x: planStart, color: COL.ink }],
+    series: [{ color: COL.pwr, kind: "line", width: 2, data: rows.map(r => ({ x: r.t, y: r.runH, tip: tipWeek(r, fmt(r.runH, 1) + " h") })) }]
+  });
+  const lim = CFG.couzens.decoupling_limit;
+  mount(document.getElementById("weekDec"), {
+    height: 260,
+    xType: "time",
+    yLabel: "Long-run decoupling (%)",
+    yDigits: 0,
+    legend: [{ name: "Longest run, " + CFG.couzens.long_run_min + " min or more", color: COL.hr }, { name: "±" + lim + "%", color: COL.mark }],
+    hlines: [{ y: lim, color: COL.hr, label: "+" + lim + "%" }, { y: -lim, color: COL.hr }, { y: 0, color: COL.mark }],
+    vlines: [{ x: planStart, color: COL.ink }],
+    series: [{
+      color: COL.hr, kind: "line", width: 2,
+      data: rows.filter(r => r.longDec != null).map(r => ({ x: r.t, y: r.longDec, tip: tipWeek(r, "Decoupling " + fmt(r.longDec, 1) + "%") }))
+    }]
+  });
+  const paces = rows.map(r => r.easyPace).filter(v => v != null);
+  mount(document.getElementById("weekEasy"), {
+    height: 260,
+    xType: "time",
+    yLabel: "Easy pace (min/km), faster up",
+    yDigits: 1,
+    yDomain: paces.length ? [Math.max(...paces) + 0.4, Math.min(...paces) - 0.4] : [12.5, 9],
+    legend: [{ name: EASY_LABEL + ", " + CFG.filters.min_steady_min + " min or more", color: COL.late }],
+    vlines: [{ x: planStart, color: COL.ink }],
+    series: [{
+      color: COL.late, kind: "line", width: 2,
+      data: rows.filter(r => r.easyPace != null).map(r => ({ x: r.t, y: r.easyPace, tip: tipWeek(r, "Easy pace " + fmtPace(r.easyPace) + "/km") }))
+    }]
+  });
+}
+
+function renderProgress() {
+  const cols = [
+    ["Week", w => esc(w.week) + (w.partial ? " *" : "")],
+    ["Runs", w => w.runs],
+    ["Run h", w => fmt(w.runH, 1)],
+    ["Hard h", w => fmt(w.hardH, 1)],
+    ["Long min", w => fmt(w.longMin, 0)],
+    ["Long dec %", w => fmt(w.longDec, 1)],
+    ["Easy pace", w => fmtPace(w.easyPace)],
+    ["Easy EF", w => fmt(w.easyEf, 2)],
+    ["Speed days", w => w.speedDays],
+    ["3K–10K min", w => fmt(w.speed, 1)],
+    ["Goal min", w => fmt(w.goal, 1)],
+    ["Sleep h", w => fmt(w.sleep, 1)],
+    ["RHR", w => fmt(w.rhr, 0)],
+    ["SDNN", w => fmt(w.hrv, 0)]
+  ];
+  const weeks = EV.weeks.slice().reverse();
+  document.getElementById("progressTable").innerHTML =
+    "<thead><tr>" + cols.map(c => "<th>" + c[0] + "</th>").join("") + "</tr></thead><tbody>"
+    + weeks.map(w => "<tr>" + cols.map(c => "<td>" + c[1](w) + "</td>").join("") + "</tr>").join("") + "</tbody>";
+}
+
+function renderBase() {
+  const steady = RUNS.filter(r => isLate(r) && r.steady && r.dur >= CFG.couzens.long_run_min && r.decP != null);
+  const durable = steady.filter(r => Math.abs(r.decP) <= CFG.couzens.decoupling_limit);
+  const best = durable.slice().sort((a, b) => a.pace - b.pace)[0];
+  document.getElementById("baseStats").innerHTML =
+    statHtml(fmt(EV.baseScore, 1) + " / " + EV.baseMax, "Base building rating")
+    + statHtml(PAY.finding.steady40Dec == null ? "—" : PAY.finding.steady40Dec + "%", "Median decoupling, long steady runs")
+    + (best ? statHtml(fmtPace(best.pace) + " /km", "Fastest durable long run, " + best.date) : "")
+    + (best ? statHtml(fmt(best.hr, 0) + " bpm", "Heart rate on that run") : "");
+  document.getElementById("baseBody").innerHTML = checkRows(EV.base);
+}
+
+function renderRecords() {
+  document.getElementById("recordsBody").innerHTML = EV.records.map(r =>
+    "<tr><td>" + esc(r.name) + "</td><td>" + esc(r.time || "—") + "</td><td>" + esc(r.pace ? r.pace + " /km" : "—") + "</td><td>" + esc(r.date || "—")
+    + '</td><td class="wrap">' + esc((r.source ? r.source + ": " : "") + r.detail) + "</td><td>" + esc(r.riegel || "—") + "</td></tr>").join("");
+}
+
+function renderTargets() {
+  document.getElementById("targetsBody").innerHTML = CFG.plan.targets.map(t => {
+    const sec = t.time.split(":").reduce((a, b) => a * 60 + Number(b), 0);
+    const rec = EV.records.find(r => Math.abs(r.km - t.km) / t.km < 0.03);
+    const gap = rec && rec.seconds ? " (" + Math.round((rec.seconds / sec - 1) * 100) + "% slower)" : "";
+    return "<tr><td>" + esc(t.name) + "</td><td>" + esc(t.time) + "</td><td>" + secPace(sec / t.km) + " /km</td><td>"
+      + esc(rec && rec.time ? rec.time + ", " + rec.pace + " /km" + gap : "—") + "</td></tr>";
+  }).join("");
+  document.getElementById("bandsBody").innerHTML = EV.bands.map(b =>
+    "<tr><td>" + esc(b.name) + "</td><td>" + secPace(b.lo) + "–" + secPace(b.hi) + "</td><td>" + ruleTag(b.rule) + "</td></tr>").join("");
+}
+
+function renderRecoveryText() {
+  const R = EV.recovery;
+  const c = CFG.couzens;
+  document.getElementById("recoveryStats").innerHTML =
+    statHtml(fmt(R.median, 1) + " h", "Median night asleep, " + R.nights + " nights")
+    + statHtml(fmt(R.under, 0) + "%", "Nights under " + c.short_sleep_h + " hours")
+    + statHtml(fmt(R.rhoEf, 2), "Rank link, sleep to easy-run EF")
+    + statHtml(R.heatDrop == null ? "—" : fmt(R.heatDrop, 0) + " W", "Easy-run power drop at " + c.hot_c + "°C or more");
+  const weak = v => v == null ? "not measurable" : Math.abs(v) < 0.3 ? "weak" : Math.abs(v) < 0.5 ? "moderate" : "strong";
+  const hard4 = EV.weeks.filter(w => !w.partial).slice(-4).reduce((s, w) => s + (w.hardH || 0), 0);
+  const parts = [
+    "The median night is " + fmt(R.median, 1) + " hours over " + R.nights + " nights. " + fmt(R.under, 0) + " percent are under " + c.short_sleep_h + " hours and " + fmt(R.over, 0) + " percent are " + c.sleep_target_h + " hours or more. " + R.naps + " days have a nap that is kept out of the night (M3).",
+    "On " + R.nLinked + " easy runs, the rank link from the previous night to efficiency factor is " + fmt(R.rhoEf, 2) + " and to power " + fmt(R.rhoPwr, 2) + ". Both are " + weak(R.rhoEf) + ". Sleep is one readiness marker among several (C17), not a lever for a single run.",
+    R.heatDrop == null ? "" : "Easy runs at " + c.hot_c + "°C or more give up about " + fmt(R.heatDrop, 0) + " W against cooler easy runs (C5). Read EF in hot weeks against hot weeks.",
+    "The last four full weeks hold " + fmt(hard4, 1) + " hours of hard workout time (C7)."
+  ].filter(Boolean);
+  document.getElementById("recoveryText").innerHTML = parts.map(t => '<p class="note">' + esc(t) + "</p>").join("");
+  const cell = (v, d, unit) => v == null ? "—" : fmt(v, d) + (unit || "");
+  document.getElementById("sleepTable").innerHTML = R.sleepRows.map(x =>
+    "<tr><td>" + esc(x.label) + "</td><td>" + x.n + "</td><td>" + cell(x.ef, 2) + "</td><td>" + cell(x.pwr, 0, " W") + "</td><td>" + cell(x.dec, 1, "%") + "</td><td>" + cell(x.temp, 0, "°C") + "</td></tr>").join("");
+  document.getElementById("heatTable").innerHTML = R.heatRows.map(x =>
+    "<tr><td>" + esc(x.label) + "</td><td>" + x.n + "</td><td>" + cell(x.pwr, 0, " W") + "</td><td>" + cell(x.ef, 2) + "</td><td>" + cell(x.hr, 0, " bpm") + "</td></tr>").join("");
+}
+
+function renderRules() {
+  document.getElementById("rulesBody").innerHTML = EV.rules.map(r =>
+    "<tr><td>" + ruleTag(r.id) + '</td><td class="wrap">' + esc(r.text) + '</td><td class="wrap">'
+    + (r.url ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]) + "</a>" : "Plan") + "</td></tr>").join("");
+}
+
+function trackSections() {
+  const nav = document.querySelector(".side nav");
+  const links = new Map();
+  nav.querySelectorAll("a").forEach(a => links.set(a.getAttribute("href").slice(1), a));
+  const heads = [...document.querySelectorAll("main h2[id]")].filter(h => links.has(h.id));
+  let current = null;
+  function update() {
+    let id = heads.length ? heads[0].id : null;
+    for (const h of heads) {
+      if (h.getBoundingClientRect().top <= 140) id = h.id; else break;
+    }
+    if (id === current) return;
+    current = id;
+    links.forEach((a, key) => a.classList.toggle("active", key === id));
+    const a = links.get(id);
+    if (a && nav.scrollWidth > nav.clientWidth) nav.scrollTo({ left: a.offsetLeft - nav.clientWidth / 2 + a.clientWidth / 2, behavior: "smooth" });
+  }
+  let queued = false;
+  window.addEventListener("scroll", () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; update(); });
+  }, { passive: true });
+  update();
+}
+
+function bindSync() {
+  const btn = document.getElementById("syncBtn");
+  const note = document.getElementById("syncNote");
+  btn.title = "Shift-click to rebuild even when the export has no new record.";
+  if (!SERVED) {
+    note.textContent = "Opened as a file. Double-click Health Report.command to sync.";
+    return;
+  }
+  note.textContent = "Watching the export folder. Data through " + PAY.asOf + ".";
+  btn.addEventListener("click", async ev => {
+    btn.disabled = true;
+    note.textContent = "Checking the export folder.";
+    try {
+      const res = await fetch("/sync" + (ev.shiftKey ? "?force=1" : ""), { method: "POST", headers: { "X-Health-Report": "1" } });
+      const body = await res.json();
+      note.textContent = body.message || "Sync finished.";
+      if (body.updated) location.reload();
+    } catch (err) {
+      note.textContent = "The service is not running. Double-click Health Report.command.";
+    }
+    btn.disabled = false;
+  });
+  setInterval(async () => {
+    try {
+      const s = await (await fetch("/status", { cache: "no-store" })).json();
+      if (s.state === "syncing") note.textContent = "Syncing. " + (s.message || "");
+      else if (s.buildId && s.buildId !== PAY.buildId) location.reload();
+    } catch (err) {
+      note.textContent = "The service stopped. Double-click Health Report.command.";
+    }
+  }, 15000);
+}
+
+fillConfig();
+renderCheckin();
+renderJournal();
+renderPlan();
+renderProgress();
+renderBase();
+renderRecords();
+renderTargets();
+renderRecoveryText();
+renderRules();
+
+function renderAll() {
+  writeFinding();
+  const rows = baseRuns();
+  renderStats(rows);
+  renderTrends();
+  renderScatters();
+  renderEF();
+  renderDec();
+  renderSession();
+  renderDurability();
+  renderEconomy();
+  renderHeat();
+  renderRecovery();
+  renderPlanWeeks();
+  renderReadiness();
+  renderLog();
+}
+
+document.getElementById("minDur").addEventListener("change", renderAll);
+document.getElementById("steadyOnly").addEventListener("change", () => {
+  renderDec();
+  renderDurability();
+  renderHeat();
+});
+document.getElementById("runPick").addEventListener("change", renderSession);
+document.getElementById("logBody").addEventListener("click", (ev) => {
+  const tr = ev.target.closest("tr");
+  if (tr && tr.dataset.id) selectRun(Number(tr.dataset.id));
+});
+
+renderMMP();
+renderVolume();
+renderAll();
+trackSections();
+bindSync();
+</script>
+</body>
+</html>
