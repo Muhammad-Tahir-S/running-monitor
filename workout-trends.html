@@ -119,9 +119,10 @@
   .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
   .stat span { color: var(--muted); font-size: 12px; }
   .note { color: var(--muted); font-size: 14px; max-width: 78ch; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  .grid2 > * { min-width: 0; }
   .grid2 .span2 { grid-column: 1 / -1; }
-  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } .grid2 .span2 { grid-column: auto; } }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .grid2 .span2 { grid-column: auto; } }
   .panel { margin: 8px 0 18px; }
   .chart-wrap { position: relative; background: var(--paper); border: 1px solid var(--line); }
   canvas { display: block; width: 100%; }
