@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-10-02 10:22",
+  "asOf": "2026-10-04 08:00",
   "baseScore": 3.5,
   "checks": {
     "C11 Faster hard mark after the base": "fail",
@@ -21,7 +21,7 @@
   "couzensScore": 2.0,
   "nikeScore": 3.0,
   "planWeek": 1,
-  "readiness": "rest",
+  "readiness": "recovery",
   "records": {
     "1 km": "4:46",
     "1 mile": "8:44",
@@ -30,9 +30,9 @@
   },
   "week": {
     "bridge": 1.7,
-    "easyEf": 0.836,
-    "easyH": 3.65,
-    "easyPace": 10.07,
+    "easyEf": 0.829,
+    "easyH": 5.77,
+    "easyPace": 10.79,
     "fast": 14.7,
     "fivek": 1.0,
     "goal": 3.0,
@@ -40,13 +40,13 @@
     "hrv": 55.1,
     "longDec": null,
     "longMin": 54.0,
-    "longRatio": 2.56,
+    "longRatio": 2.41,
     "mile": 3.0,
-    "partial": true,
-    "rhr": 68.5,
-    "runH": 2.44,
-    "runs": 7,
-    "sleep": 5.33,
+    "partial": false,
+    "rhr": 67.0,
+    "runH": 2.98,
+    "runs": 8,
+    "sleep": 6.14,
     "speed": 1.5,
     "speedDays": 2,
     "week": "2026-09-28"
