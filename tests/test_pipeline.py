@@ -137,6 +137,58 @@ class PipelineTest(unittest.TestCase):
             strides.append({"dur": 1.0, "dist": 0.08, "hr": 120, "hr_min": 100, "spd": 5, "pwr": 80})
         self.assertIsNone(hp.classify_run_walk(strides, 9))
 
+    def test_best_efforts_skip_run_walk(self):
+        start = datetime(2026, 9, 29, 8, 0, 0)
+        end = start + timedelta(minutes=10)
+        lines = ['<?xml version="1.0" encoding="UTF-8"?>', "<HealthData>"]
+        lines.append(f'<Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="10" durationUnit="min" {WATCH} startDate="{stamp(start)}" endDate="{stamp(end)}">')
+        lines.append(stat("HeartRate", start, end, average="140", unit="count/min"))
+        lines.append(stat("RunningPower", start, end, average="140", unit="W"))
+        lines.append(stat("RunningSpeed", start, end, average="8", unit="km/hr"))
+        lines.append("</Workout>")
+        t = start
+        while t < end:
+            lines.append(record("HeartRate", t, 140))
+            lines.append(record("RunningPower", t, 140, "W"))
+            lines.append(record("RunningSpeed", t, 8, "km/hr"))
+            t += timedelta(seconds=10)
+        rw = start + timedelta(hours=3)
+        lines.append(f'<Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="15" durationUnit="min" {WATCH} startDate="{stamp(rw)}" endDate="{stamp(rw + timedelta(minutes=15))}">')
+
+        def piece(a, b, dur, hr, spd, pwr):
+            return "\n".join([
+                f'<WorkoutActivity startDate="{stamp(a)}" endDate="{stamp(b)}" duration="{dur}" durationUnit="min">',
+                stat("HeartRate", a, b, average=hr, minimum=hr, unit="count/min"),
+                stat("RunningSpeed", a, b, average=spd, unit="km/hr"),
+                stat("RunningPower", a, b, average=pwr, unit="W"),
+                "</WorkoutActivity>",
+            ])
+
+        cursor = rw
+        for _ in range(3):
+            run_end = cursor + timedelta(minutes=4)
+            lines.append(piece(cursor, run_end, 4, 170, 16, 280))
+            walk_end = run_end + timedelta(minutes=1)
+            lines.append(piece(run_end, walk_end, 1, 120, 5, 80))
+            cursor = walk_end
+        lines.append("</Workout>")
+        while rw < cursor:
+            lines.append(record("HeartRate", rw, 170))
+            lines.append(record("RunningPower", rw, 280, "W"))
+            lines.append(record("RunningSpeed", rw, 16, "km/hr"))
+            rw += timedelta(seconds=10)
+        lines.append("</HealthData>")
+        folder = Path(self.tmp.name) / "mmp"
+        folder.mkdir()
+        zpath = folder / "export.zip"
+        with zipfile.ZipFile(zpath, "w") as z:
+            z.writestr(hp.XML, "\n".join(lines))
+        payload = hp.build_payload(zpath, self.cfg)
+        self.assertEqual(len(payload["runWalks"]), 1)
+        one = next(row for row in payload["mmp"] if row["min"] == 1)
+        self.assertLess(one["pwr"], 200)
+        self.assertLess(one["spd"], 12)
+
     def test_night_spans_midnight_and_nap_is_separate(self):
         nights = {n["date"]: n for n in self.payload["recovery"]["nights"]}
         self.assertEqual(nights["2026-09-29"]["asleep"], 7.0)

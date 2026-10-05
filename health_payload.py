@@ -656,7 +656,7 @@ def build_payload(zpath, cfg=None):
 
     run_walks.sort(key=lambda s: (s["date"], s["start"]))
 
-    watch_runs = [w for w in workouts if w["act"] == "Running" and w["watch"]]
+    watch_runs = [w for w in workouts if w["act"] == "Running" and w["watch"] and not w.get("run_walk")]
     binned_runs = []
     for workout in watch_runs:
         samples = {key: slice_series(streams[key], workout["t0"], workout["t1"]) for key in STREAMS}

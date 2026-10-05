@@ -28,19 +28,6 @@ TAG = '<script type="application/json" id="payload">'
 PLACEHOLDER = TAG + "{}</script>"
 LOCK = threading.Lock()
 STATUS = {"state": "idle", "message": "", "buildId": None}
-
-
-def _dbg(hypothesis, location, message, data=None):
-    # #region agent log
-    try:
-        path = "/Users/muhammad-tahirsanuth/Desktop/AppleHealthExports/.cursor/debug-d6d6ae.log"
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps({"sessionId": "d6d6ae", "hypothesisId": hypothesis, "location": location,
-                                 "message": message, "data": data or {}, "timestamp": int(time.time() * 1000)}) + "\n")
-    except OSError:
-        pass
-    # #endregion
 JOURNAL_KEYS = ("mood", "soreness", "fatigue", "stress", "sleepQuality")
 
 
@@ -156,7 +143,6 @@ def commit(cfg, message):
 
 def sync(force=False):
     if not LOCK.acquire(blocking=False):
-        _dbg("E", "sync_server.py:sync", "sync skipped, lock held", {"state": STATUS.get("state")})
         return {"updated": False, "busy": True, "message": "A sync is already running."}
     try:
         cfg = config()
@@ -267,9 +253,7 @@ def watch():
             stale = read_json(path_of(cfg, "state"), {}).get("buildKey") != key and key != tried
             if sig and sig != seen and sig != pending:
                 pending = sig
-                _dbg("D", "sync_server.py:watch", "zip changed, waiting one interval", {"zip": path.name if path else None})
             elif sig and (sig == pending or stale):
-                _dbg("E", "sync_server.py:watch", "watch is rebuilding", {"stale": bool(stale), "settled": sig == pending, "key": key})
                 result = sync()
                 if result.get("busy"):
                     time.sleep(cfg["server"]["watch_seconds"])
@@ -315,7 +299,6 @@ class Handler(BaseHTTPRequestHandler):
         if route in ("/", "/workout-trends.html"):
             report = path_of(cfg, "report")
             if report.exists():
-                _dbg("D", "sync_server.py:do_GET", "page served", {"buildId": STATUS.get("buildId"), "state": STATUS.get("state")})
                 self._send(200, report.read_bytes(), "text/html; charset=utf-8")
             else:
                 self._send(503, '<meta http-equiv="refresh" content="5"><p style="font:16px sans-serif;margin:40px">'
@@ -364,12 +347,10 @@ def main():
     host, port = cfg["server"]["host"], cfg["server"]["port"]
     print(f"Report: http://{host}:{port}/")
     print("Export folder:", path_of(cfg, "export_dir"))
-    _dbg("A", "sync_server.py:main", "server starting", {"port": port, "buildId": STATUS.get("buildId")})
     server = ThreadingHTTPServer((host, port), Handler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        _dbg("A", "sync_server.py:main", "serve_forever stopped", {"type": "KeyboardInterrupt", "threads": threading.active_count()})
         print("Stopped.")
     finally:
         server.server_close()

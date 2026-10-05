@@ -446,7 +446,7 @@
   <div class="panel" id="durChart"></div>
 
   <h2 id="curve">Best efforts</h2>
-  <p class="note">These curves are the best mean power and the best mean speed over each window, from Apple Watch samples. Samples above <span data-cfg="filters.max_kmh"></span> km/h or <span data-cfg="filters.pwr_max"></span> W are removed as sensor faults (M4). Sprint reps stay in. Each window must be mostly continuous. Do not compare these watts with Stryd or Garmin.</p>
+  <p class="note">These curves are the best mean power and the best mean speed over each window, from Apple Watch samples. Samples above <span data-cfg="filters.max_kmh"></span> km/h or <span data-cfg="filters.pwr_max"></span> W are removed as sensor faults (M4). Sprint reps stay in. Each window must be mostly continuous. Run–walk intervals stay out of these curves (C3). Do not compare these watts with Stryd or Garmin.</p>
   <div class="panel" id="mmpPwr"></div>
   <button type="button" class="more-btn" data-extra="curve" aria-expanded="false" aria-controls="extra-curve" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
   <div class="extra" id="extra-curve" hidden>
@@ -2169,7 +2169,7 @@ function renderPlanWeeks() {
     xType: "time",
     yLabel: "Long-run decoupling (%)",
     yDigits: 0,
-    legend: [{ name: "Longest run, " + CFG.couzens.long_run_min + " min or more", color: COL.hr }, { name: "±" + lim + "%", color: COL.mark }],
+    legend: [{ name: "Longest steady run, " + CFG.couzens.long_run_min + " min or more", color: COL.hr }, { name: "±" + lim + "%", color: COL.mark }],
     hlines: [{ y: lim, color: COL.hr, label: "+" + lim + "%" }, { y: -lim, color: COL.hr }, { y: 0, color: COL.mark }],
     vlines: [{ x: planStart, color: COL.ink }],
     series: [{
@@ -2358,12 +2358,7 @@ function bindSync() {
     try {
       const s = await (await fetch("/status", { cache: "no-store" })).json();
       if (s.state === "syncing") note.textContent = "Syncing. " + (s.message || "");
-      else if (s.buildId && s.buildId !== PAY.buildId) {
-        // #region agent log
-        fetch("http://127.0.0.1:7782/ingest/49cf2e3f-abe1-4945-8d1d-46d824a001f0", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d6d6ae" }, body: JSON.stringify({ sessionId: "d6d6ae", hypothesisId: "D", location: "report_template.html:bindSync", message: "status build differs from page", data: { status: s.buildId, page: PAY.buildId, state: s.state }, timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
-        location.reload();
-      }
+      else if (s.buildId && s.buildId !== PAY.buildId) location.reload();
     } catch (err) {
       note.textContent = "The service stopped. Double-click Health Report.command.";
     }

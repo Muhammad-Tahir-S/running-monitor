@@ -508,10 +508,10 @@ def plan_checks(p, cfg, journal, weeks, bands, as_of, peak):
                         text + f" Peak is {peak[1]:.1f} h a week, the 4 weeks from {peak[0]}; floor is {c['speed_volume_floor'] * 100:.0f}%."))
     long_dec = week.get("longDec")
     if long_dec is None:
-        cz.append(check("C2", "Long run stays durable", "na", f"No run of {c['long_run_min']} min or more with a decoupling value this week."))
+        cz.append(check("C2", "Long run stays durable", "na", f"No steady run of {c['long_run_min']} min or more with a decoupling value this week."))
     else:
         cz.append(check("C2", "Long run stays durable", "pass" if abs(long_dec) <= c["decoupling_limit"] else "fail",
-                        f"Longest run decouples {long_dec:.1f}%. The limit is ±{c['decoupling_limit']}%."))
+                        f"The longest steady run decouples {long_dec:.1f}%. Run–walk intervals are not in this check (C3). The limit is ±{c['decoupling_limit']}%."))
     mornings = [readiness(p, cfg, journal, date.fromisoformat(d)) for d in sorted({x["date"] for x in speed_runs})]
     if not mornings:
         cz.append(check("C17", "Speed on ready mornings", "na", "No speed day yet this week."))
@@ -664,7 +664,7 @@ def actions(cfg, base, plan, ready, rec, weeks, bands, off):
             out.append({"rule": "P3", "text": f"Stop goal-pace reps at {cfg['plan']['goal_pace_cap_min']} minutes and sub-7 reps at {cfg['plan']['fastest_cap_min']} minute. " + p3["evidence"]})
     full = [w for w in weeks if not w["partial"] and w["longDec"] is not None][-2:]
     if len(full) == 2 and all(abs(w["longDec"]) > c["decoupling_limit"] for w in full):
-        out.append({"rule": "C2", "text": f"The last two long runs decoupled {full[0]['longDec']:.1f}% and {full[1]['longDec']:.1f}%. Drop one speed day this week and recover (C18)."})
+        out.append({"rule": "C2", "text": f"The last two long steady runs decoupled {full[0]['longDec']:.1f}% and {full[1]['longDec']:.1f}%. Drop one speed day this week and recover (C18)."})
     for x in base:
         if x["rule"] == "C8" and x["result"] == "fail":
             out.append({"rule": "C8", "text": "Monthly run time is down. Volume is the base dose; add easy time before more intensity."})
