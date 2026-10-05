@@ -16,6 +16,14 @@
       "sleepQuality": 3,
       "soreness": 2,
       "stress": 1
+    },
+    {
+      "date": "2026-10-05",
+      "fatigue": 1,
+      "mood": 3,
+      "sleepQuality": 4,
+      "soreness": 2,
+      "stress": 2
     }
   ],
   "races": []
