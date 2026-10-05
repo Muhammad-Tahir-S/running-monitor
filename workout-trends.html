@@ -1109,6 +1109,7 @@ function mount(host, spec) {
     };
   }
 
+  wrap.addEventListener("chart-show", draw);
   draw();
   if (host._ro) host._ro.disconnect();
   host._ro = new ResizeObserver(draw);
@@ -2275,6 +2276,36 @@ function renderRules() {
     + (r.url ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]) + "</a>" : "Plan") + "</td></tr>").join("");
 }
 
+function setExtra(id, open, fromNav) {
+  const box = document.getElementById("extra-" + id);
+  if (!box) return;
+  box.hidden = !open;
+  document.querySelectorAll('.nav-item[data-extra="' + id + '"]').forEach(el => el.classList.toggle("open", open));
+  document.querySelectorAll('button[data-extra="' + id + '"]').forEach(btn => {
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.classList.toggle("open", open);
+    const more = btn.dataset.more || (btn.classList.contains("nav-toggle") ? "More" : "More charts");
+    const less = btn.dataset.less || (btn.classList.contains("nav-toggle") ? "Less" : "Fewer charts");
+    btn.textContent = open ? less : more;
+  });
+  if (!open) return;
+  box.querySelectorAll(".chart-wrap").forEach(wrap => wrap.dispatchEvent(new Event("chart-show")));
+  if (fromNav) {
+    const head = document.getElementById(id);
+    if (head) head.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+function bindExtras() {
+  document.addEventListener("click", ev => {
+    const btn = ev.target.closest("button[data-extra]");
+    if (!btn) return;
+    const id = btn.getAttribute("data-extra");
+    const box = document.getElementById("extra-" + id);
+    if (!box) return;
+    setExtra(id, box.hidden, btn.classList.contains("nav-toggle"));
+  });
+}
+
 function trackSections() {
   const nav = document.querySelector(".side nav");
   const links = new Map();
@@ -2390,6 +2421,7 @@ renderMMP();
 renderFatigue();
 renderVolume();
 renderAll();
+bindExtras();
 trackSections();
 bindSync();
 </script>
