@@ -152,6 +152,28 @@ little fatigue carries into the next year. Decoupling (C2) is phase 0 on one run
 The slope in C19 is a different number.
 Source: [The Fatigue Curve, 2009](http://alancouzens.blogspot.com/2009/10/fatigue-curve.html).
 
+**C21 Off-season after the key races (Couzens).** The purpose is to shed the fatigue of the
+season, including the part the athlete does not feel. For about 60 days after the races,
+do no specific 5K work. The first 4 weeks are the pure recovery half: weekly run time
+falls to 10–40% of the in-season week (a cut of 60–90%). Each session should leave you
+fresher than you started. The weeks after that, through about 60 days, hold about 50%
+of the in-season week. That matches a cut of about half for about two months after a
+key race, and a recovery block that keeps fitness. A long block near 20% of normal
+volume lost fitness in his own log. Swimmers held performance for 5 weeks at 60% of
+normal volume. The second block stays easy and can add mobility and short skill reps.
+Specific work for the next 5K waits until the 60 days are done. Athletes who skip the
+off-season, or who keep specific work inside it, were the ones whose next season did
+not improve.
+**Adapted:** in-season volume is the mean run hours of the full weeks in this plan.
+If that block has no full week yet, it is the recent 4-week peak (C13), then the
+last full weeks. The hours are run hours, because specific run work is what this block
+drops. Easy walks can sit in the week as general movement.
+Sources: [The Off-Season, updated 2017](https://alancouzens.com/blog/off_season.html),
+[Recovery/Timing, 2009](http://alancouzens.blogspot.com/2009/02/recoverytiming.html),
+[Kona Qualifiers Basic Year](https://www.alancouzens.com/blog/kona_year.html).
+Config: `couzens.off_season_days`, `couzens.off_shed_weeks`, `couzens.off_shed_low`,
+`couzens.off_shed_high`, `couzens.off_hold_share`.
+
 ## Plan rules (not Couzens)
 
 **P1 Week shape.** Two speed runs, two easy runs, and one long run each week.

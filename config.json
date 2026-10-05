@@ -55,7 +55,12 @@
     "vo2_two_speed_days_below": 40,
     "speed_volume_floor": 0.66,
     "speed_volume_ceiling": 0.80,
-    "peak_lookback_weeks": 16
+    "peak_lookback_weeks": 16,
+    "off_season_days": 60,
+    "off_shed_weeks": 4,
+    "off_shed_low": 0.10,
+    "off_shed_high": 0.40,
+    "off_hold_share": 0.50
   },
   "plan": {
     "name": "Nike Run Club 5K plan",

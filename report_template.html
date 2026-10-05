@@ -243,6 +243,8 @@
   <div class="ready" id="readyCard"></div>
   <h3>What to do next</h3>
   <ol class="actions" id="actions"></ol>
+  <h3 id="offSeasonTitle">After the races</h3>
+  <div class="finding" id="offSeason"></div>
   <h3>This week against last week</h3>
   <div class="scroll"><table id="weekCompare"></table></div>
   <div class="finding" id="finding"></div>
@@ -557,6 +559,8 @@
     <dd>A Watch run whose steps repeat 4 min / 1 min, 9 min / 1 min, or 12 min / 3 min, at least three times, is a run–walk (M6). It is not scored as a steady run (C3). Recovery on a walk is the run step’s average heart rate minus the lowest heart rate on that walk.</dd>
     <dt>Fatigue curve</dt>
     <dd>Best mean power and best mean speed at each duration come from the watch samples (M4). The line is output = anchor × hours ^ index. The anchor is the value at 1 hour. The percent fall when duration doubles is 1 − 2^index (C19). The four recovery phases are a different use of the same name (C20). This export has no lactate test.</dd>
+    <dt>After the races</dt>
+    <dd>The plan end date is the start of about 60 days with no specific 5K work (C21). The first 4 weeks keep 10–40% of the in-season run week. The weeks after that keep about half, through the end of the 60 days. In-season hours are the full weeks of this plan. Easy walks can stay in the week. They are general movement.</dd>
     <dt>Aerobic threshold</dt>
     <dd>Couzens finds it from the first rise in lactate. This export has no lactate. A steady run with decoupling inside ±5 percent is only a candidate heart rate (C6).</dd>
     <dt>Readiness</dt>
@@ -1439,7 +1443,10 @@ function renderFatigue() {
   const reach = F.longest < 60
     ? " The longest best effort in this file is " + F.longest + " minutes. A point past that duration would be an extension of the line."
     : " The line includes a best effort of " + F.longest + " minutes.";
-  read.innerHTML = '<p class="note">' + esc(shape + reach) + "</p>";
+  const after = EV.offSeason && EV.offSeason.phase !== "after"
+    ? " The break after the races is phase 2 and phase 3. The weekly hours for that break are in the check-in."
+    : "";
+  read.innerHTML = '<p class="note">' + esc(shape + reach + after) + "</p>";
   const powers = F.points.filter(p => p.pwr != null);
   const ticks = powers.map(p => p.min);
   mount(document.getElementById("fatiguePwr"), {
@@ -1942,6 +1949,17 @@ function renderCheckin() {
   document.getElementById("actions").innerHTML = acts.length
     ? acts.map(a => "<li>" + ruleTag(a.rule) + esc(a.text) + "</li>").join("")
     : "<li>Nothing to change. Keep the plan.</li>";
+  const off = EV.offSeason;
+  const offTitle = document.getElementById("offSeasonTitle");
+  const offBox = document.getElementById("offSeason");
+  if (!off) {
+    offTitle.hidden = true;
+    offBox.hidden = true;
+  } else {
+    offTitle.hidden = false;
+    offBox.hidden = false;
+    offBox.innerHTML = off.paragraphs.map(t => "<p>" + ruleTag("C21") + esc(t) + "</p>").join("");
+  }
 
   const weeks = EV.weeks;
   const cur = weeks[weeks.length - 1], prev = weeks[weeks.length - 2];

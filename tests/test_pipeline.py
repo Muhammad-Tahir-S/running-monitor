@@ -214,6 +214,31 @@ class FatigueTest(unittest.TestCase):
         ]))
 
 
+class OffSeasonTest(unittest.TestCase):
+    def weeks(self):
+        start = datetime(2026, 9, 28).date()
+        return [{"week": (start + timedelta(weeks=i)).isoformat(), "partial": False, "runH": 4.0} for i in range(3)]
+
+    def test_before_the_race_cuts_to_10_to_40_percent_then_half(self):
+        off = couzens.off_season(hp.load_config(), self.weeks(), datetime(2026, 10, 5).date(), None)
+        self.assertEqual(off["phase"], "before")
+        self.assertEqual(off["raceEnd"], "2026-11-23")
+        self.assertAlmostEqual(off["baseH"], 4.0)
+        self.assertAlmostEqual(off["shedLo"], 0.4)
+        self.assertAlmostEqual(off["shedHi"], 1.6)
+        self.assertAlmostEqual(off["holdH"], 2.0)
+        self.assertEqual(off["offEnd"], "2027-01-22")
+        self.assertIn("0.4–1.6 h", off["action"])
+        self.assertIn("2.0 h", off["action"])
+        self.assertIn("C21", couzens.RULES)
+
+    def test_shed_phase_names_the_current_cap(self):
+        off = couzens.off_season(hp.load_config(), self.weeks(), datetime(2026, 11, 25).date(), None)
+        self.assertEqual(off["phase"], "shed")
+        self.assertIn("0.4", off["action"])
+        self.assertIn("1.6", off["action"])
+
+
 class JournalTest(unittest.TestCase):
     def test_valid_entry(self):
         entry, race = sync_server.clean_entry({"date": "2026-10-02", "mood": "4", "race": {"km": 5, "time": "27:30"}})

@@ -32,6 +32,7 @@ RULES = {
     "C18": ("Adaptation is fatigue, then recovery, then a higher level", DEC),
     "C19": ("Best power against duration gives a fatigue index. When duration doubles, power falls by 1 − 2 to that power", "https://alancouzens.com/endurancecorner/2015/09/fatigue-curves/"),
     "C20": ("Tiredness clears in four phases: inside the session, over 1–4 days, over 1–2 weeks, and over months", "http://alancouzens.blogspot.com/2009/10/fatigue-curve.html"),
+    "C21": ("After the key races, cut weekly run time to 10–40% for about 4 weeks, then hold about half, with specific work waiting until about 60 days have passed", "https://alancouzens.com/blog/off_season.html"),
     "P1": ("Plan week: two speed runs, two easy runs, one long run", None),
     "P2": ("Plan 5K pace means the 5K you can run now", None),
     "P3": ("Goal pace and faster stay a short set", None),
@@ -568,7 +569,84 @@ def recovery_eval(p, cfg):
     }
 
 
-def actions(cfg, base, plan, ready, rec, weeks, bands):
+def _in_season_hours(cfg, weeks, peak):
+    plan = cfg["plan"]
+    start = date.fromisoformat(plan["start"])
+    end = start + timedelta(weeks=plan["weeks"])
+    block = [w["runH"] or 0 for w in weeks if start <= date.fromisoformat(w["week"]) < end and not w["partial"]]
+    if block:
+        noun = "week" if len(block) == 1 else "weeks"
+        return statistics.mean(block), f"{len(block)} full {noun} of this plan"
+    if peak:
+        return peak[1], f"the 4-week peak from {peak[0]}"
+    recent = [w["runH"] or 0 for w in weeks if not w["partial"]][-4:]
+    if not recent:
+        return None, None
+    return statistics.mean(recent), "the last full weeks"
+
+
+def off_season(cfg, weeks, as_of, peak):
+    """Rule C21. Weekly run hours to keep after the plan races."""
+    c = cfg["couzens"]
+    plan = cfg.get("plan") or {}
+    if not plan.get("start") or not plan.get("weeks"):
+        return None
+    base, label = _in_season_hours(cfg, weeks, peak)
+    if base is None or base < 0.05:
+        return None
+    race_end = date.fromisoformat(plan["start"]) + timedelta(weeks=plan["weeks"])
+    shed_weeks = c.get("off_shed_weeks", 4)
+    shed_end = race_end + timedelta(weeks=shed_weeks)
+    off_end = race_end + timedelta(days=c.get("off_season_days", 60))
+    low, high = c.get("off_shed_low", 0.10), c.get("off_shed_high", 0.40)
+    hold_share = c.get("off_hold_share", 0.50)
+    lo, hi, hold = base * low, base * high, base * hold_share
+    if as_of < race_end:
+        phase = "before"
+    elif as_of < shed_end:
+        phase = "shed"
+    elif as_of < off_end:
+        phase = "hold"
+    else:
+        phase = "after"
+    days_left = (race_end - as_of).days
+    if days_left >= 14:
+        when = f"in {days_left // 7} weeks"
+    elif days_left > 1:
+        when = f"in {days_left} days"
+    elif days_left == 1:
+        when = "in 1 day"
+    else:
+        when = "now"
+    paragraphs = [
+        f"The plan ends on {race_end.isoformat()}, {when}. After that, take about {c.get('off_season_days', 60)} days with no specific 5K work. Those days shed the fatigue of the block, including the part you may not feel.",
+        f"Your in-season week is {base:.1f} run hours, from {label}. For the first {shed_weeks} weeks, {race_end.isoformat()} to {shed_end.isoformat()}, cut the week to {lo:.1f}–{hi:.1f} run hours. That is a cut of {100 - high * 100:.0f}–{100 - low * 100:.0f}%. Taper studies found that a drop of 60–90% sheds fatigue fastest. Keep each session easy enough that you feel better after it than before it. Easy walks can fill the day. They are general movement.",
+        f"From {shed_end.isoformat()} to {off_end.isoformat()}, hold about {hold:.1f} run hours a week, about half of the in-season week. A cut of about 40–50% kept fitness in Couzens' own log, and a cut of about half for about two months is what his athletes do after a key race. Swimmers held performance for 5 weeks at 60% of normal volume. A long block near 20% of normal volume lost fitness. This second block stays easy. Add mobility and short skill reps. Specific 5K work waits until after {off_end.isoformat()}.",
+    ]
+    if phase == "shed":
+        action = f"This is the first off-season block, until {shed_end.isoformat()}. Keep the week at {lo:.1f}–{hi:.1f} run hours, and keep it easy."
+    elif phase == "hold":
+        action = f"This is the second off-season block, until {off_end.isoformat()}. Hold about {hold:.1f} run hours, still easy, with mobility and short skill reps. Specific 5K work waits until after {off_end.isoformat()}."
+    elif phase == "before":
+        action = f"After {race_end.isoformat()}, cut weekly run time from {base:.1f} h to {lo:.1f}–{hi:.1f} h for {shed_weeks} weeks, then hold about {hold:.1f} h until {off_end.isoformat()}. Specific 5K work waits until after that date."
+    else:
+        action = None
+    return {
+        "phase": phase,
+        "raceEnd": race_end.isoformat(),
+        "shedEnd": shed_end.isoformat(),
+        "offEnd": off_end.isoformat(),
+        "baseH": r(base, 2),
+        "baseLabel": label,
+        "shedLo": r(lo, 2),
+        "shedHi": r(hi, 2),
+        "holdH": r(hold, 2),
+        "action": action,
+        "paragraphs": paragraphs,
+    }
+
+
+def actions(cfg, base, plan, ready, rec, weeks, bands, off):
     c = cfg["couzens"]
     out = []
     if ready["flags"] or ready["level"] in ("recovery", "rest"):
@@ -596,6 +674,8 @@ def actions(cfg, base, plan, ready, rec, weeks, bands):
         out.append({"rule": "C17", "text": f"{rec['under']:.0f}% of nights are under {c['short_sleep_h']} h. Aim for {c['sleep_target_h']} h before speed mornings and long runs."})
     if rec["heatDrop"] is not None and rec["heatDrop"] >= 3:
         out.append({"rule": "C5", "text": f"Easy runs at {c['hot_c']}°C or more give up about {rec['heatDrop']:.0f} W. Keep hot runs easy and put speed on cooler mornings."})
+    if off and off.get("action"):
+        out.append({"rule": "C21", "text": off["action"]})
     return out
 
 
@@ -611,6 +691,7 @@ def evaluate(p, cfg, journal):
     base = base_checks(p, cfg, weeks, before, after, as_of)
     plan = plan_checks(p, cfg, journal, weeks, bands, as_of, peak)
     rec = recovery_eval(p, cfg)
+    off = off_season(cfg, weeks, as_of, peak)
     new_runs = []
     prev = (p.get("sync") or {}).get("previousLocal")
     if prev:
@@ -628,7 +709,8 @@ def evaluate(p, cfg, journal):
         "plan": plan,
         "recovery": rec,
         "fatigue": fatigue_curve(p.get("mmp") or []),
-        "actions": actions(cfg, base, plan, ready, rec, weeks, bands),
+        "offSeason": off,
+        "actions": actions(cfg, base, plan, ready, rec, weeks, bands, off),
         "newRuns": new_runs,
         "rules": [{"id": k, "text": v[0], "url": v[1]} for k, v in RULES.items()],
     }
