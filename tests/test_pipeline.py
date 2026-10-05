@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -237,6 +238,26 @@ class OffSeasonTest(unittest.TestCase):
         self.assertEqual(off["phase"], "shed")
         self.assertIn("0.4", off["action"])
         self.assertIn("1.6", off["action"])
+
+
+class SectionToggleTest(unittest.TestCase):
+    def setUp(self):
+        self.html = Path("report_template.html").read_text()
+
+    def test_each_extra_has_a_page_control_and_a_sidebar_control(self):
+        extras = set(re.findall(r'id="extra-([^"]+)"', self.html))
+        page = set(re.findall(r'class="more-btn"[^>]*data-extra="([^"]+)"', self.html))
+        side = set(re.findall(r'class="nav-toggle"[^>]*data-extra="([^"]+)"', self.html))
+        self.assertEqual(extras, page)
+        self.assertEqual(extras, side)
+        self.assertIn("trend", extras)
+        self.assertNotIn("checkin", extras)
+
+    def test_weekly_check_in_stays_open(self):
+        for section in ("checkin", "journal", "improve", "progress"):
+            block = self.html.split(f'id="{section}"', 1)[1].split("<h2", 1)[0]
+            self.assertNotIn("more-btn", block)
+            self.assertNotIn("extra-", block)
 
 
 class JournalTest(unittest.TestCase):
