@@ -223,29 +223,29 @@
     <a href="#progress">Progress</a>
     <h4>Status</h4>
     <a href="#base">Base</a>
-    <a href="#runwalk">Run–walk</a>
+    <div class="nav-item" data-extra="runwalk"><a href="#runwalk">Run–walk</a><button type="button" class="nav-toggle" data-extra="runwalk" aria-expanded="false" aria-controls="extra-runwalk" title="Show the other charts in Run–walk. The control in the section does the same.">More</button></div>
     <a href="#records">Best times</a>
     <a href="#plan">Targets</a>
     <h4>Running</h4>
-    <a href="#trend">Trend</a>
-    <a href="#relationship">Relationship</a>
+    <div class="nav-item" data-extra="trend"><a href="#trend">Trend</a><button type="button" class="nav-toggle" data-extra="trend" aria-expanded="false" aria-controls="extra-trend" title="Show the other charts in Trend. The control in the section does the same.">More</button></div>
+    <div class="nav-item" data-extra="relationship"><a href="#relationship">Relationship</a><button type="button" class="nav-toggle" data-extra="relationship" aria-expanded="false" aria-controls="extra-relationship" title="Show the other charts in Relationship. The control in the section does the same.">More</button></div>
     <a href="#efficiency">Efficiency</a>
-    <a href="#decoupling">Decoupling</a>
-    <a href="#session">A run</a>
+    <div class="nav-item" data-extra="decoupling"><a href="#decoupling">Decoupling</a><button type="button" class="nav-toggle" data-extra="decoupling" aria-expanded="false" aria-controls="extra-decoupling" title="Show the other charts in Decoupling. The control in the section does the same.">More</button></div>
+    <div class="nav-item" data-extra="session"><a href="#session">A run</a><button type="button" class="nav-toggle" data-extra="session" aria-expanded="false" aria-controls="extra-session" title="Show the other charts in A run. The control in the section does the same.">More</button></div>
     <a href="#durability">Durability</a>
-    <a href="#curve">Best efforts</a>
-    <a href="#fatigue">Fatigue</a>
+    <div class="nav-item" data-extra="curve"><a href="#curve">Best efforts</a><button type="button" class="nav-toggle" data-extra="curve" aria-expanded="false" aria-controls="extra-curve" title="Show the other charts in Best efforts. The control in the section does the same.">More</button></div>
+    <div class="nav-item" data-extra="fatigue"><a href="#fatigue">Fatigue</a><button type="button" class="nav-toggle" data-extra="fatigue" aria-expanded="false" aria-controls="extra-fatigue" title="Show the other charts in Fatigue. The control in the section does the same.">More</button></div>
     <h4>Load</h4>
-    <a href="#volume">Volume</a>
-    <a href="#economy">Economy</a>
+    <div class="nav-item" data-extra="volume"><a href="#volume">Volume</a><button type="button" class="nav-toggle" data-extra="volume" aria-expanded="false" aria-controls="extra-volume" title="Show the other charts in Volume. The control in the section does the same.">More</button></div>
+    <div class="nav-item" data-extra="economy"><a href="#economy">Economy</a><button type="button" class="nav-toggle" data-extra="economy" aria-expanded="false" aria-controls="extra-economy" title="Show the other charts in Economy. The control in the section does the same.">More</button></div>
     <a href="#heat">Heat</a>
     <h4>Body</h4>
-    <a href="#recovery">Recovery</a>
-    <a href="#readiness">Readiness</a>
+    <div class="nav-item" data-extra="recovery"><a href="#recovery">Recovery</a><button type="button" class="nav-toggle" data-extra="recovery" aria-expanded="false" aria-controls="extra-recovery" title="Show the other charts in Recovery. The control in the section does the same.">More</button></div>
+    <div class="nav-item" data-extra="readiness"><a href="#readiness">Readiness</a><button type="button" class="nav-toggle" data-extra="readiness" aria-expanded="false" aria-controls="extra-readiness" title="Show the other charts in Readiness. The control in the section does the same.">More</button></div>
     <h4>Reference</h4>
-    <a href="#log">Log</a>
-    <a href="#rules">Couzens rules</a>
-    <a href="#error">Error</a>
+    <div class="nav-item" data-extra="log"><a href="#log">Log</a><button type="button" class="nav-toggle" data-extra="log" data-more="More" data-less="Less" aria-expanded="false" aria-controls="extra-log" title="Show the run log. The control in the section does the same.">More</button></div>
+    <div class="nav-item" data-extra="rules"><a href="#rules">Couzens rules</a><button type="button" class="nav-toggle" data-extra="rules" data-more="More" data-less="Less" aria-expanded="false" aria-controls="extra-rules" title="Show the rule table. The control in the section does the same.">More</button></div>
+    <div class="nav-item" data-extra="error"><a href="#error">Error</a><button type="button" class="nav-toggle" data-extra="error" data-more="More" data-less="Less" aria-expanded="false" aria-controls="extra-error" title="Show the error tables. The control in the section does the same.">More</button></div>
     <a href="#methods">Methods</a>
   </nav>
 </aside>
@@ -343,6 +343,8 @@
   <h3>Pace of the run pieces</h3>
   <p class="note">Each point is the mean pace of the run pieces in one session. Faster pace is at the top.</p>
   <div class="panel" id="rwPace"></div>
+  <button type="button" class="more-btn" data-extra="runwalk" aria-expanded="false" aria-controls="extra-runwalk" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-runwalk" hidden>
   <h3>Recovery on the walks</h3>
   <p class="note">Each point is the mean recovery of the walks in one session, in beats per minute.</p>
   <div class="panel" id="rwRec"></div>
@@ -358,6 +360,7 @@
   <p class="note">Each point is one run piece and the walk after it. Distance is on the horizontal axis. Recovery is on the vertical axis.</p>
   <div class="panel" id="rwScatter"></div>
   <div class="scroll"><table id="runWalkTable"></table></div>
+  </div>
 
   <h2 id="records">Best times</h2>
   <p class="note">A recorded best is the fastest average pace over a whole workout that covers the distance, up to twice as long. The time is that pace times the distance. A run that covers the distance at that average pace holds a stretch at least that fast. Indoor runs are out. Races from the journal count too. Outdoor GPS distance can be wrong by about 4 to 6 percent.</p>
@@ -397,15 +400,19 @@
 
   <h2 id="trend">Trend across time</h2>
   <p class="note">Each point is one Apple Watch run. Blue is <span class="era-before"></span>. Green is <span class="era-after"></span>. Faster pace is at the top of the pace chart. Run–walk intervals are in their own section, not in these charts (C3). Runs from other apps count in the hour totals only when the Watch did not record the same run (M1).</p>
+  <div class="panel" id="trendPace"></div>
+  <button type="button" class="more-btn" data-extra="trend" aria-expanded="false" aria-controls="extra-trend" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-trend" hidden>
   <div class="panel" id="trendHr"></div>
   <div class="panel" id="trendPwr"></div>
-  <div class="panel" id="trendPace"></div>
+  </div>
 
   <h2 id="relationship">Heart rate against output</h2>
   <p class="note">Each point is the mean for one run. Apple checks a 5-second heart-rate sample against a chest strap. A run mean moves less than one sample. Apple does not give a watt error for running power. Use the watts to compare this watch with itself.</p>
-  <div class="grid2">
-    <div class="panel" id="scPwr"></div>
-    <div class="panel" id="scPace"></div>
+  <div class="panel" id="scPace"></div>
+  <button type="button" class="more-btn" data-extra="relationship" aria-expanded="false" aria-controls="extra-relationship" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-relationship" hidden>
+  <div class="panel" id="scPwr"></div>
   </div>
 
   <h2 id="efficiency">Efficiency factor, split by heart-rate band</h2>
@@ -414,9 +421,10 @@
 
   <h2 id="decoupling">Aerobic decoupling</h2>
   <p class="note">Couzens uses the Joe Friel split (C1). Divide the run into two equal times. Use only samples while you move at <span data-cfg="filters.move_kmh"></span> km/h or more, for power, speed, and heart rate. Stops do not enter either half. Each half needs at least <span data-cfg="filters.min_half_samples"></span> samples. The two halves must stay within 15 percent for power or for speed. If they do not, the number is a pace change, not drift. Decoupling is (first half minus second half) divided by the first half. A positive number means the second half needs more beats for the same output. The lines at ±<span data-cfg="couzens.decoupling_limit"></span> percent are his limits (C2). A filled point is a steady run (C3).</p>
-  <div class="grid2">
-    <div class="panel" id="decP"></div>
-    <div class="panel" id="decS"></div>
+  <div class="panel" id="decS"></div>
+  <button type="button" class="more-btn" data-extra="decoupling" aria-expanded="false" aria-controls="extra-decoupling" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-decoupling" hidden>
+  <div class="panel" id="decP"></div>
   </div>
 
   <h2 id="session">One run, minute by minute</h2>
@@ -428,7 +436,10 @@
   </div>
   <p id="runBlurb" class="note"></p>
   <div class="panel" id="runHrPwr"></div>
+  <button type="button" class="more-btn" data-extra="session" aria-expanded="false" aria-controls="extra-session" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-session" hidden>
   <div class="panel" id="runPace"></div>
+  </div>
 
   <h2 id="durability">Durability</h2>
   <p class="note">This chart is decoupling against duration. Couzens uses it on steady easy runs, not on intervals (C3). A long steady run inside ±5 percent is a candidate for your aerobic heart rate (C6). This file has no lactate test, so that heart rate is an estimate.</p>
@@ -436,9 +447,10 @@
 
   <h2 id="curve">Best efforts</h2>
   <p class="note">These curves are the best mean power and the best mean speed over each window, from Apple Watch samples. Samples above <span data-cfg="filters.max_kmh"></span> km/h or <span data-cfg="filters.pwr_max"></span> W are removed as sensor faults (M4). Sprint reps stay in. Each window must be mostly continuous. Do not compare these watts with Stryd or Garmin.</p>
-  <div class="grid2">
-    <div class="panel" id="mmpPwr"></div>
-    <div class="panel" id="mmpSpd"></div>
+  <div class="panel" id="mmpPwr"></div>
+  <button type="button" class="more-btn" data-extra="curve" aria-expanded="false" aria-controls="extra-curve" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-curve" hidden>
+  <div class="panel" id="mmpSpd"></div>
   </div>
 
   <h2 id="fatigue">Fatigue curve</h2>
@@ -448,20 +460,29 @@
   <div class="stats" id="fatigueStats"></div>
   <div id="fatigueRead"></div>
   <div class="panel" id="fatiguePwr"></div>
+  <button type="button" class="more-btn" data-extra="fatigue" aria-expanded="false" aria-controls="extra-fatigue" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-fatigue" hidden>
   <div class="panel" id="fatigueSpd"></div>
   <div class="scroll"><table id="fatigueTable"></table></div>
+  </div>
 
   <h2 id="volume">Volume and work</h2>
   <p class="note">The hours include every workout: runs, rides, walks, and strength. Couzens treats monthly volume as the base dose (C8). <span id="droppedNote"></span> The calorie chart is walk and run calories only. When the watch is calibrated, Apple reports 0 ± 9 percent against a lab cart. Other studies often find a calorie error above 10 percent.</p>
   <div class="panel" id="volChart"></div>
+  <button type="button" class="more-btn" data-extra="volume" aria-expanded="false" aria-controls="extra-volume" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-volume" hidden>
   <div class="panel" id="kcalChart"></div>
+  </div>
 
   <h2 id="economy">Running economy companions</h2>
   <p class="note">These charts show ground contact time, vertical oscillation, and stride length against pace. They do not replace power. They show if a slower pace has a different stride. Faster pace is on the left.</p>
+  <div class="panel" id="strideChart"></div>
+  <button type="button" class="more-btn" data-extra="economy" aria-expanded="false" aria-controls="extra-economy" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-economy" hidden>
   <div class="grid2">
     <div class="panel" id="gctChart"></div>
     <div class="panel" id="voChart"></div>
-    <div class="panel span2" id="strideChart"></div>
+  </div>
   </div>
 
   <h2 id="heat">Heat</h2>
@@ -473,6 +494,10 @@
   <div class="stats" id="recoveryStats"></div>
   <p class="note">The sleep chart and the load charts use every day. They do not use the run filter. The four scatter charts use the duration filter. Green points are the easy band.</p>
   <div class="panel" id="sleepChart"></div>
+  <h3>What the data says</h3>
+  <div id="recoveryText"></div>
+  <button type="button" class="more-btn" data-extra="recovery" aria-expanded="false" aria-controls="extra-recovery" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-recovery" hidden>
   <div class="grid2">
     <div class="panel" id="easyHardChart"></div>
     <div class="panel" id="stressChart"></div>
@@ -484,8 +509,6 @@
     <div class="panel" id="tempEfChart"></div>
     <div class="panel" id="humEfChart"></div>
   </div>
-  <h3>What the data says</h3>
-  <div id="recoveryText"></div>
   <div class="grid2">
     <div class="scroll">
       <table>
@@ -500,20 +523,28 @@
       </table>
     </div>
   </div>
+  </div>
 
   <h2 id="readiness">Readiness around the runs</h2>
   <p class="note" id="readyNote"></p>
   <div class="grid2">
     <div class="panel" id="easyHr"></div>
-    <div class="panel" id="rhrChart"></div>
     <div class="panel" id="hrvChart"></div>
+  </div>
+  <button type="button" class="more-btn" data-extra="readiness" aria-expanded="false" aria-controls="extra-readiness" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
+  <div class="extra" id="extra-readiness" hidden>
+  <div class="grid2">
+    <div class="panel" id="rhrChart"></div>
     <div class="panel" id="vo2Chart"></div>
     <div class="panel" id="whrChart"></div>
     <div class="panel" id="hrrChart"></div>
   </div>
+  </div>
 
   <h2 id="log">Instrumented runs</h2>
   <p class="note">Select a row to open that run above. Decoupling is blank when a half does not have enough moving samples.</p>
+  <button type="button" class="more-btn" data-extra="log" data-more="More in this section" data-less="Less in this section" aria-expanded="false" aria-controls="extra-log" title="Show the run log. The sidebar control does the same.">More in this section</button>
+  <div class="extra" id="extra-log" hidden>
   <div class="scroll">
     <table>
       <thead>
@@ -524,18 +555,24 @@
       <tbody id="logBody"></tbody>
     </table>
   </div>
+  </div>
 
   <h2 id="rules">Couzens rules</h2>
   <p class="note">Every check on this page uses one of these rules. The full text, with what is Couzens and what is adapted to Apple Watch data, is in COUZENS_RULES.md. The thresholds are in config.json.</p>
+  <button type="button" class="more-btn" data-extra="rules" data-more="More in this section" data-less="Less in this section" aria-expanded="false" aria-controls="extra-rules" title="Show the rule table. The sidebar control does the same.">More in this section</button>
+  <div class="extra" id="extra-rules" hidden>
   <div class="scroll">
     <table>
       <thead><tr><th>Rule</th><th>What it says</th><th>Source</th></tr></thead>
       <tbody id="rulesBody"></tbody>
     </table>
   </div>
+  </div>
 
   <h2 id="error">Stated error and independent error</h2>
   <p class="note">These two error sets stay separate. Apple’s numbers are from the November 2024 heart-rate and calorie paper. They use samples that the watch agrees to publish. The watch already removes poor samples. The other numbers are from other studies. They are not a calibration of this watch.</p>
+  <button type="button" class="more-btn" data-extra="error" data-more="More in this section" data-less="Less in this section" aria-expanded="false" aria-controls="extra-error" title="Show the error tables. The sidebar control does the same.">More in this section</button>
+  <div class="extra" id="extra-error" hidden>
   <h3>Heart rate during workouts</h3>
   <p class="src">Apple compares 5-second readings with a chest strap. Availability is the part of the time that has a published reading.</p>
   <div class="scroll">
@@ -564,6 +601,7 @@
         <tr><td>Heart-rate variability</td><td>SDNN from readings taken while still.</td><td>Couzens uses morning rMSSD. SDNN is a different, noisier measure.</td><td>Daily median. Quartiles against the last 90 days set the day (C16).</td></tr>
       </tbody>
     </table>
+  </div>
   </div>
 
   <h2 id="methods">Sources, limits, and process</h2>
