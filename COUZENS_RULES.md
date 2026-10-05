@@ -144,3 +144,8 @@ A segment that starts between 11:00 and 18:00 is a nap and is not part of the ni
 removed. The limits allow sprint reps; they only cut sensor faults.
 **M5 Deterministic output.** The same export, config, and journal give the same report.
 The "as of" date is the newest record in the export, never the clock.
+**M6 Run–walk intervals.** A Watch run whose steps repeat 4 min / 1 min, 9 min / 1 min,
+or 12 min / 3 min, at least three times, is a run–walk. A step that covers the whole
+workout is the parent summary and is not a piece. These sessions are not steady (C3).
+Recovery on a walk is the run step's average heart rate minus the lowest heart rate
+stored for that walk.

@@ -206,6 +206,7 @@
     <a href="#progress">Progress</a>
     <h4>Status</h4>
     <a href="#base">Base</a>
+    <a href="#runwalk">Run–walk</a>
     <a href="#records">Best times</a>
     <a href="#plan">Targets</a>
     <h4>Running</h4>
@@ -313,6 +314,31 @@
     </table>
   </div>
 
+  <h2 id="runwalk">Run–walk</h2>
+  <p class="note">These are Apple Watch runs that repeat a run piece and a walk. A session is listed when the same pair happens at least three times. The pairs are 4 minutes running and 1 minute walking, 9 minutes and 1 minute, and 12 minutes and 3 minutes. Short strides are not in this section.</p>
+  <p class="note">Distance is the length of a run piece. The minutes do not change, so a longer piece is a faster piece. Recovery is the average heart rate of the run piece minus the lowest heart rate on the walk after it. A higher number means the heart fell further during the walk. The lowest beat is the minimum the watch stored for that step.</p>
+  <p class="note">These runs stay out of the steady-run charts. Decoupling describes a steady run, not intervals (C3).</p>
+  <div class="stats" id="runWalkStats"></div>
+  <p id="runWalkSummary" class="note"></p>
+  <h3>Pace of the run pieces</h3>
+  <p class="note">Each point is the mean pace of the run pieces in one session. Faster pace is at the top.</p>
+  <div class="panel" id="rwPace"></div>
+  <h3>Recovery on the walks</h3>
+  <p class="note">Each point is the mean recovery of the walks in one session, in beats per minute.</p>
+  <div class="panel" id="rwRec"></div>
+  <div class="controls">
+    <label>Pattern
+      <select id="rwKind"></select>
+    </label>
+  </div>
+  <h3 id="rwDistTitle">Distance of the run pieces</h3>
+  <p class="note">Each point is the mean distance of the run pieces in one session of the pattern above.</p>
+  <div class="panel" id="rwDist"></div>
+  <h3>Distance against recovery</h3>
+  <p class="note">Each point is one run piece and the walk after it. Distance is on the horizontal axis. Recovery is on the vertical axis.</p>
+  <div class="panel" id="rwScatter"></div>
+  <div class="scroll"><table id="runWalkTable"></table></div>
+
   <h2 id="records">Best times</h2>
   <p class="note">A recorded best is the fastest average pace over a whole workout that covers the distance, up to twice as long. The time is that pace times the distance. A run that covers the distance at that average pace holds a stretch at least that fast. Indoor runs are out. Races from the journal count too. Outdoor GPS distance can be wrong by about 4 to 6 percent.</p>
   <p class="note">The equivalent column is the best 5 km scaled with the Riegel exponent 1.06. It is a model, not a result.</p>
@@ -350,7 +376,7 @@
   <div class="stats" id="stats"></div>
 
   <h2 id="trend">Trend across time</h2>
-  <p class="note">Each point is one Apple Watch run. Blue is <span class="era-before"></span>. Green is <span class="era-after"></span>. Faster pace is at the top of the pace chart. Runs from other apps count in the hour totals only when the Watch did not record the same run (M1).</p>
+  <p class="note">Each point is one Apple Watch run. Blue is <span class="era-before"></span>. Green is <span class="era-after"></span>. Faster pace is at the top of the pace chart. Run–walk intervals are in their own section, not in these charts (C3). Runs from other apps count in the hour totals only when the Watch did not record the same run (M1).</p>
   <div class="panel" id="trendHr"></div>
   <div class="panel" id="trendPwr"></div>
   <div class="panel" id="trendPace"></div>
@@ -516,6 +542,8 @@
     <dd>The page depends only on the export zip, config.json, and journal.json (M5). The "as of" time is the newest record in the export. Each sync writes metrics/weeks.csv and metrics/summary.json and commits them to git, so every change in a number has a date and a reason.</dd>
     <dt>One session, one record</dt>
     <dd>A copy of a Watch workout from another app, such as Nike Run Club or Sworkit, is removed when it overlaps the Watch workout by half or more. Exact duplicates are removed (M1).</dd>
+    <dt>Run–walk steps</dt>
+    <dd>A Watch run whose steps repeat 4 min / 1 min, 9 min / 1 min, or 12 min / 3 min, at least three times, is a run–walk (M6). It is not scored as a steady run (C3). Recovery on a walk is the run step’s average heart rate minus the lowest heart rate on that walk.</dd>
     <dt>Aerobic threshold</dt>
     <dd>Couzens finds it from the first rise in lactate. This export has no lactate. A steady run with decoupling inside ±5 percent is only a candidate heart rate (C6).</dd>
     <dt>Readiness</dt>
@@ -584,7 +612,7 @@ function fmt(v, d) {
 }
 function minDur() { return Number(document.getElementById("minDur").value); }
 function steadyOnly() { return document.getElementById("steadyOnly").checked; }
-function baseRuns() { return RUNS.filter(r => r.dur >= minDur()); }
+function baseRuns() { return RUNS.filter(r => r.dur >= minDur() && !r.runWalk); }
 function decRuns() {
   return baseRuns().filter(r => r.decP != null && (!steadyOnly() || r.steady));
 }
@@ -1003,6 +1031,102 @@ function pointRuns(rows, colorFn, openFn) {
   }));
 }
 
+const RW_KIND = {
+  "4-1": { name: "4 min run, 1 min walk", color: "#1e4d7b" },
+  "9-1": { name: "9 min run, 1 min walk", color: "#1d6b45" },
+  "12-3": { name: "12 min run, 3 min walk", color: "#8a5a2b" }
+};
+
+function rwName(kind) { return (RW_KIND[kind] || { name: kind }).name; }
+
+function renderRunWalk() {
+  const rows = (PAY.runWalks || []).slice().sort((a, b) => a.t - b.t);
+  const kinds = Object.keys(RW_KIND).filter(k => rows.some(s => s.kind === k));
+  const sel = document.getElementById("rwKind");
+  const prev = sel.value;
+  sel.innerHTML = kinds.map(k => '<option value="' + k + '">' + esc(rwName(k)) + "</option>").join("");
+  sel.value = kinds.includes(prev) ? prev : (kinds.includes("4-1") ? "4-1" : (kinds[0] || ""));
+  const kind = sel.value;
+  const legend = kinds.map(k => ({ name: rwName(k), color: RW_KIND[k].color }));
+
+  document.getElementById("runWalkStats").innerHTML = kinds.map(k => {
+    const n = rows.filter(s => s.kind === k).length;
+    return statHtml(String(n), rwName(k));
+  }).join("") || statHtml("0", "Run–walk sessions");
+
+  const bits = kinds.map(k => {
+    const set = rows.filter(s => s.kind === k);
+    if (set.length < 4) return "";
+    const first = set.slice(0, 3), last = set.slice(-3);
+    const d0 = median(first.map(s => s.runDist)), d1 = median(last.map(s => s.runDist));
+    const p0 = median(first.map(s => s.runPace)), p1 = median(last.map(s => s.runPace));
+    const r0 = median(first.map(s => s.rec)), r1 = median(last.map(s => s.rec));
+    return rwName(k) + ": the median run piece moved from " + fmt(d0, 2) + " km (" + fmtPace(p0)
+      + "/km) in the first three sessions to " + fmt(d1, 2) + " km (" + fmtPace(p1)
+      + "/km) in the last three. Walk recovery moved from " + fmt(r0, 0) + " bpm to " + fmt(r1, 0) + " bpm.";
+  }).filter(Boolean);
+  document.getElementById("runWalkSummary").textContent = bits.join(" ");
+
+  function tipSession(s) {
+    return s.date + " " + s.start + " · " + rwName(s.kind)
+      + "\n" + s.n + " pairs · piece " + fmt(s.runDist, 2) + " km at " + fmtPace(s.runPace) + "/km"
+      + "\nRun HR " + fmt(s.runHr, 0) + " bpm · walk low " + fmt(s.walkMin, 0) + " bpm"
+      + "\nRecovery " + fmt(s.rec, 0) + " bpm";
+  }
+  function seriesFor(list, yKey) {
+    return kinds.map(k => ({
+      name: rwName(k),
+      color: RW_KIND[k].color,
+      kind: "scatter",
+      radius: 4.5,
+      data: list.filter(s => s.kind === k && s[yKey] != null).map(s => ({ x: s.t, y: s[yKey], id: s.id, tip: tipSession(s) }))
+    })).filter(s => s.data.length);
+  }
+  const time = { xType: "time", height: 260, legend };
+  const paces = rows.map(s => s.runPace).filter(v => v != null);
+  const paceDomain = paces.length ? [Math.max(...paces) + 0.3, Math.min(...paces) - 0.3] : [12, 8];
+  mount(document.getElementById("rwPace"), { ...time, yLabel: "Pace (min/km), faster up", yDigits: 1, yDomain: paceDomain, series: seriesFor(rows, "runPace") });
+  mount(document.getElementById("rwRec"), { ...time, yLabel: "Recovery on the walk (bpm)", yDigits: 0, series: seriesFor(rows, "rec") });
+
+  const chosen = rows.filter(s => s.kind === kind);
+  const meta = RW_KIND[kind] || { name: "Run–walk", color: COL.ink };
+  document.getElementById("rwDistTitle").textContent = "Distance of the run pieces · " + meta.name;
+  mount(document.getElementById("rwDist"), {
+    xType: "time", height: 260, yLabel: "Mean run piece (km)", yDigits: 2,
+    legend: [{ name: meta.name, color: meta.color }],
+    series: [{
+      color: meta.color, kind: "scatter", radius: 4.5,
+      data: chosen.filter(s => s.runDist != null).map(s => ({ x: s.t, y: s.runDist, id: s.id, tip: tipSession(s) }))
+    }]
+  });
+
+  const pieces = [];
+  chosen.forEach(s => (s.pieces || []).forEach(p => {
+    if (p.dist == null || p.rec == null) return;
+    pieces.push({
+      x: p.dist, y: p.rec, id: s.id,
+      tip: s.date + " · piece " + p.i + " of " + s.n
+        + "\n" + fmt(p.dist, 2) + " km at " + fmtPace(p.pace) + "/km"
+        + "\nRun HR " + fmt(p.hr, 0) + " · walk low " + fmt(p.walkMin, 0)
+        + "\nRecovery " + fmt(p.rec, 0) + " bpm"
+    });
+  }));
+  mount(document.getElementById("rwScatter"), {
+    height: 320, xType: "linear", xAxis: "Run piece (km)", yLabel: "Recovery on the walk (bpm)",
+    xDigits: 2, yDigits: 0,
+    legend: [{ name: meta.name, color: meta.color }],
+    series: [{ color: meta.color, kind: "scatter", radius: 4, data: pieces }]
+  });
+
+  const head = "<thead><tr><th>Date</th><th>Pattern</th><th>Pairs</th><th>Piece km</th><th>Pace</th><th>Run HR</th><th>Walk low</th><th>Recovery</th></tr></thead>";
+  const body = rows.slice().sort((a, b) => b.t - a.t || b.start.localeCompare(a.start)).map(s =>
+    "<tr data-id=\"" + (s.id == null ? "" : s.id) + "\"><td>" + s.date + " " + s.start + "</td><td>" + esc(rwName(s.kind))
+    + "</td><td>" + s.n + "</td><td>" + fmt(s.runDist, 2) + "</td><td>" + fmtPace(s.runPace)
+    + "</td><td>" + fmt(s.runHr, 0) + "</td><td>" + fmt(s.walkMin, 0) + "</td><td>" + fmt(s.rec, 0) + "</td></tr>"
+  ).join("");
+  document.getElementById("runWalkTable").innerHTML = head + "<tbody>" + body + "</tbody>";
+}
+
 function renderStats(rows) {
   const host = document.getElementById("stats");
   const items = [
@@ -1147,9 +1271,11 @@ function selectRun(id) {
 
 function renderSession() {
   const sel = document.getElementById("runPick");
-  const rows = baseRuns().filter(r => r.trace && r.trace.min && r.trace.min.length);
+  const rows = RUNS.filter(r => r.trace && r.trace.min && r.trace.min.length && (r.runWalk || r.dur >= minDur()));
   const current = sel.value;
-  sel.innerHTML = rows.slice().sort((a, b) => a.t - b.t).map(r => '<option value="' + r.id + '">' + r.label + " · " + fmtPace(r.pace) + "/km</option>").join("");
+  sel.innerHTML = rows.slice().sort((a, b) => a.t - b.t).map(r =>
+    '<option value="' + r.id + '">' + r.label + (r.runWalk ? " · " + rwName(r.runWalk) : "") + " · " + fmtPace(r.pace) + "/km</option>"
+  ).join("");
   let run = rows.find(r => String(r.id) === current);
   if (!run) run = rows.slice().sort((a, b) => b.dur - a.dur)[0];
   if (!run) {
@@ -1163,6 +1289,7 @@ function renderSession() {
   const pace2 = run.spd2 ? fmtPace(60 / run.spd2) : "—";
   document.getElementById("runBlurb").textContent =
     run.date + ". " + fmt(run.dur, 0) + " min. " + fmt(run.dist, 2) + " km. "
+    + (run.runWalk ? rwName(run.runWalk) + ". The mean below mixes the runs and the walks. " : "")
     + (run.steadyPace ? "The pace is steady." : "The pace changes.")
     + (run.indoor ? " Indoor." : "")
     + (run.temp == null ? "" : " Temperature is " + fmt(run.temp, 0) + "°C.")
@@ -2012,7 +2139,12 @@ function bindSync() {
     try {
       const s = await (await fetch("/status", { cache: "no-store" })).json();
       if (s.state === "syncing") note.textContent = "Syncing. " + (s.message || "");
-      else if (s.buildId && s.buildId !== PAY.buildId) location.reload();
+      else if (s.buildId && s.buildId !== PAY.buildId) {
+        // #region agent log
+        fetch("http://127.0.0.1:7782/ingest/49cf2e3f-abe1-4945-8d1d-46d824a001f0", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d6d6ae" }, body: JSON.stringify({ sessionId: "d6d6ae", hypothesisId: "D", location: "report_template.html:bindSync", message: "status build differs from page", data: { status: s.buildId, page: PAY.buildId, state: s.state }, timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
+        location.reload();
+      }
     } catch (err) {
       note.textContent = "The service stopped. Double-click Health Report.command.";
     }
@@ -2034,6 +2166,7 @@ function renderAll() {
   writeFinding();
   const rows = baseRuns();
   renderStats(rows);
+  renderRunWalk();
   renderTrends();
   renderScatters();
   renderEF();
@@ -2049,6 +2182,11 @@ function renderAll() {
 }
 
 document.getElementById("minDur").addEventListener("change", renderAll);
+document.getElementById("rwKind").addEventListener("change", renderRunWalk);
+document.getElementById("runWalkTable").addEventListener("click", (ev) => {
+  const tr = ev.target.closest("tr");
+  if (tr && tr.dataset.id) selectRun(Number(tr.dataset.id));
+});
 document.getElementById("steadyOnly").addEventListener("change", () => {
   renderDec();
   renderDurability();

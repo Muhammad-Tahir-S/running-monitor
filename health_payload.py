@@ -231,6 +231,7 @@ def parse_export(zpath):
             "hum_raw": metas.get("HKWeatherHumidity"),
             "elev_raw": metas.get("HKElevationAscended"),
             "hardware": hardware_of(meta.get("device", "")),
+            "run_walk": classify_run_walk(activity_steps(text), lead_float(meta.get("duration")) or 0),
         })
 
     with zipfile.ZipFile(zpath) as archive, archive.open(XML) as handle:
@@ -430,6 +431,104 @@ def weather(workout):
     return temp, hum, elev
 
 
+# Repeated easy run piece, then a walk. At least three pairs, so a stray lap does not match.
+# Rule M6. These are not steady sessions (C3).
+RUN_WALK = (
+    ("4-1", 4.0, 1.0, 0.6, 0.35),
+    ("9-1", 9.0, 1.0, 0.8, 0.35),
+    ("12-3", 12.0, 3.0, 0.8, 0.6),
+)
+
+
+def activity_steps(text):
+    """One row per WorkoutActivity: the watch's own interval steps."""
+    if "<WorkoutActivity " not in text:
+        return []
+    steps = []
+    for match in re.finditer(r"<WorkoutActivity\s+([^>]+)>(.*?)</WorkoutActivity>", text, re.S):
+        meta = attrs(match.group(1))
+        if not (meta.get("startDate") and meta.get("endDate")):
+            continue
+        grouped = {}
+        for sm in re.finditer(r"<WorkoutStatistics\s+([^>]+)/>", match.group(2)):
+            sa = attrs(sm.group(1))
+            kind = sa.get("type", "").replace("HKQuantityTypeIdentifier", "")
+            grouped.setdefault(kind, sa)
+        hr = grouped.get("HeartRate", {})
+        start = parse_dt(meta["startDate"])
+        end = parse_dt(meta["endDate"])
+        steps.append({
+            "dur": lead_float(meta.get("duration")) or (end - start).total_seconds() / 60,
+            "dist": lead_float(grouped.get("DistanceWalkingRunning", {}).get("sum")),
+            "hr": lead_float(hr.get("average")),
+            "hr_min": lead_float(hr.get("minimum")),
+            "spd": lead_float(grouped.get("RunningSpeed", {}).get("average")),
+            "pwr": lead_float(grouped.get("RunningPower", {}).get("average")),
+        })
+    return steps
+
+
+def _ok_hr(value):
+    return value is not None and 45 <= value <= 210
+
+
+def classify_run_walk(steps, dur):
+    """Return the repeated run-walk prescription, or None.
+
+    A step that covers almost the whole workout is the parent summary, not a piece.
+    """
+    usable = [s for s in steps if s["dur"] >= 0.25 and (not dur or s["dur"] < dur * 0.9)]
+    best = None
+    for kind, run_m, walk_m, run_tol, walk_tol in RUN_WALK:
+        pairs = []
+        i = 0
+        while i + 1 < len(usable):
+            run, walk = usable[i], usable[i + 1]
+            if abs(run["dur"] - run_m) <= run_tol and abs(walk["dur"] - walk_m) <= walk_tol:
+                pairs.append((run, walk))
+                i += 2
+            else:
+                i += 1
+        if len(pairs) >= 3 and (best is None or len(pairs) > len(best[1])):
+            best = (kind, pairs)
+    if not best:
+        return None
+    kind, pairs = best
+    pieces = []
+    for index, (run, walk) in enumerate(pairs, start=1):
+        pace = 60 / run["spd"] if run["spd"] and run["spd"] > 1 else None
+        run_hr = run["hr"] if _ok_hr(run["hr"]) else None
+        walk_hr = walk["hr"] if _ok_hr(walk["hr"]) else None
+        walk_min = walk["hr_min"] if _ok_hr(walk["hr_min"]) else None
+        rec = (run_hr - walk_min) if run_hr is not None and walk_min is not None else None
+        pieces.append({
+            "i": index,
+            "dist": rnd(run["dist"], 3),
+            "pace": rnd(pace, 2),
+            "hr": rnd(run_hr, 1),
+            "pwr": rnd(run["pwr"], 1),
+            "walkHr": rnd(walk_hr, 1),
+            "walkMin": rnd(walk_min, 1),
+            "rec": rnd(rec, 1),
+        })
+
+    def avg(key, places):
+        return rnd(mean([p[key] for p in pieces]), places)
+
+    return {
+        "kind": kind,
+        "n": len(pieces),
+        "runDist": avg("dist", 3),
+        "runPace": avg("pace", 2),
+        "runHr": avg("hr", 1),
+        "runPwr": avg("pwr", 1),
+        "walkHr": avg("walkHr", 1),
+        "walkMin": avg("walkMin", 1),
+        "rec": avg("rec", 1),
+        "pieces": pieces,
+    }
+
+
 def build_payload(zpath, cfg=None):
     cfg = cfg or load_config()
     f = cfg["filters"]
@@ -445,6 +544,7 @@ def build_payload(zpath, cfg=None):
     as_of = parse_dt(end[1]) if end else max(w["end"] for w in workouts)
 
     runs = []
+    run_walks = []
     months = defaultdict(lambda: {k: 0.0 for k in (
         "run_h", "cycle_h", "walk_h", "hiit_h", "strength_h", "other_h", "run_km", "ped_kcal", "other_kcal"
     )})
@@ -484,7 +584,8 @@ def build_payload(zpath, cfg=None):
         speed_sd, speed_mu = pstdev(speeds), mean(speeds)
         cv = speed_sd / speed_mu if speed_sd is not None and speed_mu else None
         steady_pace = cv is not None and cv <= f["steady_cv"]
-        steady = bool(workout["dur"] >= f["min_steady_min"] and steady_pace and dec["ok"])
+        rw = workout.get("run_walk")
+        steady = bool(not rw and workout["dur"] >= f["min_steady_min"] and steady_pace and dec["ok"])
         temp, hum, elev = weather(workout)
         pace = 60 / workout["spd"] if workout["spd"] else None
         ef = workout["pwr"] / workout["hr"] if workout["pwr"] and workout["hr"] else None
@@ -508,6 +609,7 @@ def build_payload(zpath, cfg=None):
             "cv": rnd(cv, 3),
             "steadyPace": steady_pace,
             "steady": steady,
+            "runWalk": rw["kind"] if rw else None,
             "indoor": workout["indoor"],
             "temp": rnd(temp, 1),
             "hum": rnd(hum, 0),
@@ -532,6 +634,27 @@ def build_payload(zpath, cfg=None):
                 "pace": [rnd(60 / r["spd"], 2) if r["spd"] and r["spd"] > 1 else None for r in trace_rows],
             },
         })
+        if rw:
+            run_walks.append({
+                "id": runs[-1]["id"],
+                "t": runs[-1]["t"],
+                "date": day,
+                "start": runs[-1]["start"],
+                "dur": runs[-1]["dur"],
+                "dist": runs[-1]["dist"],
+                "kind": rw["kind"],
+                "n": rw["n"],
+                "runDist": rw["runDist"],
+                "runPace": rw["runPace"],
+                "runHr": rw["runHr"],
+                "runPwr": rw["runPwr"],
+                "walkHr": rw["walkHr"],
+                "walkMin": rw["walkMin"],
+                "rec": rw["rec"],
+                "pieces": rw["pieces"],
+            })
+
+    run_walks.sort(key=lambda s: (s["date"], s["start"]))
 
     watch_runs = [w for w in workouts if w["act"] == "Running" and w["watch"]]
     binned_runs = []
@@ -588,7 +711,8 @@ def build_payload(zpath, cfg=None):
         if key >= floor:
             month_rows.append({"m": key, **{k: rnd(v, 2) for k, v in months[key].items()}})
 
-    long_runs = [r for r in runs if r["dur"] >= f["min_steady_min"]]
+    scored = [r for r in runs if not r.get("runWalk")]
+    long_runs = [r for r in scored if r["dur"] >= f["min_steady_min"]]
     early = [r for r in long_runs if r["date"] < split]
     late = [r for r in long_runs if r["date"] >= split]
     lo, hi = z["easy_hr"]
@@ -632,6 +756,7 @@ def build_payload(zpath, cfg=None):
         "dropped": dropped,
         "finding": finding,
         "runs": runs,
+        "runWalks": run_walks,
         "allRuns": all_runs,
         "days": [{"d": d, "easy": rnd(v["easy"], 1), "hard": rnd(v["hard"], 1), "run": rnd(v["run"], 1)} for d, v in sorted(days.items())],
         "months": month_rows,
@@ -695,7 +820,7 @@ def add_recovery(payload, cfg, nights, naps):
     joins = []
     for r in payload["runs"]:
         night = by_date.get(r["date"])
-        if night and (r["dur"] or 0) >= cfg["filters"]["min_steady_min"]:
+        if night and (r["dur"] or 0) >= cfg["filters"]["min_steady_min"] and not r.get("runWalk"):
             joins.append({"id": r["id"], "sleep": night["asleep"], "deep": night["deep"], "rem": night["rem"]})
 
     payload["recovery"] = {"nights": rows, "load": load, "joins": joins, "hardBpm": z["hard_bpm"]}

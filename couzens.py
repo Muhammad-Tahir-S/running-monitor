@@ -44,6 +44,11 @@ LEVEL_TEXT = {
 SCORES = {"pass": 1.0, "partial": 0.5, "fail": 0.0, "na": 0.0}
 
 
+def continuous(run):
+    """Rule C3: a run-walk interval is not a steady aerobic session."""
+    return not run.get("runWalk")
+
+
 def secs(text):
     parts = [int(p) for p in str(text).strip().split(":")]
     total = 0
@@ -198,7 +203,7 @@ def readiness(p, cfg, journal, day):
         flags.append({"rule": "C17", "text": f"Slept {night['asleep']:.1f} h. The target is {c['sleep_target_h']} h."})
 
     lo, hi = (secs(x) / 60 for x in c["known_pace"])
-    known = [x for x in p["runs"] if x["pace"] and lo <= x["pace"] <= hi and x["dur"] >= cfg["filters"]["min_steady_min"]]
+    known = [x for x in p["runs"] if continuous(x) and x["pace"] and lo <= x["pace"] <= hi and x["dur"] >= cfg["filters"]["min_steady_min"]]
     recent = [x for x in known if day - timedelta(days=7) <= date.fromisoformat(x["date"]) < day]
     if recent:
         last = recent[-1]
@@ -262,10 +267,11 @@ def weeks_table(p, cfg, bands, as_of):
         data = by_week.get(week.isoformat(), {})
         alls = data.get("all", [])
         runs = data.get("runs", [])
+        steady_runs = [x for x in runs if continuous(x)]
         durs = [x["dur"] for x in alls if x["dur"]]
-        longest = max(runs, key=lambda x: x["dur"], default=None)
+        longest = max(steady_runs, key=lambda x: x["dur"], default=None)
         long_dec = longest["decP"] if longest and longest["dur"] >= c["long_run_min"] else None
-        easy_runs = [x for x in runs if x["dur"] >= f["min_steady_min"] and easy_lo <= x["hr"] <= easy_hi]
+        easy_runs = [x for x in steady_runs if x["dur"] >= f["min_steady_min"] and easy_lo <= x["hr"] <= easy_hi]
         days = data.get("days", [])
         row = {
             "week": week.isoformat(),
@@ -339,7 +345,7 @@ def base_checks(p, cfg, weeks, rec_before, rec_after, as_of):
     else:
         out.append(check("C6", "Most work is easy", "na", "No workouts with heart rate in the last 8 weeks."))
 
-    steady = [x for x in p["runs"] if x["date"] >= split and x["steady"] and x["dur"] >= c["long_run_min"] and x["decP"] is not None]
+    steady = [x for x in p["runs"] if continuous(x) and x["date"] >= split and x["steady"] and x["dur"] >= c["long_run_min"] and x["decP"] is not None]
     if steady:
         m = med([x["decP"] for x in steady])
         inside = sum(abs(x["decP"]) <= limit for x in steady)
@@ -350,7 +356,7 @@ def base_checks(p, cfg, weeks, rec_before, rec_after, as_of):
         out.append(check("C2", "Long steady runs are durable", "na", "No steady long run with a decoupling value since the split."))
 
     lo, hi = z["easy_hr"]
-    band = [x for x in p["runs"] if x["date"] >= split and x["dur"] >= cfg["filters"]["min_steady_min"] and lo <= x["hr"] <= hi and x["ef"]]
+    band = [x for x in p["runs"] if continuous(x) and x["date"] >= split and x["dur"] >= cfg["filters"]["min_steady_min"] and lo <= x["hr"] <= hi and x["ef"]]
     if len(band) >= 6:
         first = band[:max(3, len(band) // 4)]
         recent_from = (as_of - timedelta(weeks=8)).isoformat()
@@ -467,7 +473,7 @@ def recovery_eval(p, cfg):
     nights = p["recovery"]["nights"]
     sleeps = [n["asleep"] for n in nights]
     joins = {j["id"]: j for j in p["recovery"]["joins"]}
-    easy = [x for x in p["runs"] if x["dur"] >= cfg["filters"]["min_steady_min"] and lo <= x["hr"] <= hi]
+    easy = [x for x in p["runs"] if continuous(x) and x["dur"] >= cfg["filters"]["min_steady_min"] and lo <= x["hr"] <= hi]
     linked = [x for x in easy if x["id"] in joins]
     short, target = c["short_sleep_h"], c["sleep_target_h"]
 

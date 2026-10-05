@@ -1,0 +1,37 @@
+{"sessionId": "d6d6ae", "hypothesisId": "A", "location": "sync_server.py:main", "message": "server starting", "data": {"port": 8765, "buildId": "689e747bbf52"}, "timestamp": 1790956028562}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:watch", "message": "zip changed, waiting one interval", "data": {"zip": "export.zip"}, "timestamp": 1790956028563}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "689e747bbf52", "state": "idle"}, "timestamp": 1790956037352}
+{"sessionId": "d6d6ae", "hypothesisId": "A", "location": "sync_server.py:main", "message": "serve_forever stopped", "data": {"type": "KeyboardInterrupt", "threads": 2}, "timestamp": 1790956037378}
+{"sessionId": "d6d6ae", "hypothesisId": "A", "location": "sync_server.py:main", "message": "server starting", "data": {"port": 8765, "buildId": "689e747bbf52"}, "timestamp": 1791014274819}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:watch", "message": "zip changed, waiting one interval", "data": {"zip": "export.zip"}, "timestamp": 1791014274819}
+{"sessionId": "d6d6ae", "hypothesisId": "E", "location": "sync_server.py:watch", "message": "watch is rebuilding", "data": {"stale": false, "settled": true, "key": "f073fc269f5ba445"}, "timestamp": 1791014294828}
+{"sessionId": "d6d6ae", "hypothesisId": "A", "location": "sync_server.py:main", "message": "serve_forever stopped", "data": {"type": "KeyboardInterrupt", "threads": 2}, "timestamp": 1791014331384}
+{"sessionId": "d6d6ae", "hypothesisId": "A", "location": "sync_server.py:main", "message": "server starting", "data": {"port": 8765, "buildId": "689e747bbf52"}, "timestamp": 1791014984271}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:watch", "message": "zip changed, waiting one interval", "data": {"zip": "export.zip"}, "timestamp": 1791014984273}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "689e747bbf52", "state": "syncing"}, "timestamp": 1791014988731}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "ab8264d776ec", "state": "idle"}, "timestamp": 1791014999771}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "ab8264d776ec", "state": "idle"}, "timestamp": 1791015003884}
+{"sessionId": "d6d6ae", "hypothesisId": "E", "location": "sync_server.py:watch", "message": "watch is rebuilding", "data": {"stale": false, "settled": true, "key": "215cc01c598d6350"}, "timestamp": 1791015004279}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "ab8264d776ec", "state": "idle"}, "timestamp": 1791015065782}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "ab8264d776ec", "state": "idle"}, "timestamp": 1791015108681}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "ab8264d776ec", "state": "idle"}, "timestamp": 1791015147366}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "ab8264d776ec", "state": "idle"}, "timestamp": 1791015240647}
+{"sessionId": "d6d6ae", "hypothesisId": "A", "location": "sync_server.py:main", "message": "serve_forever stopped", "data": {"type": "KeyboardInterrupt", "threads": 2}, "timestamp": 1791015319368}
+{"sessionId": "d6d6ae", "hypothesisId": "A", "location": "sync_server.py:main", "message": "server starting", "data": {"port": 8765, "buildId": "ab8264d776ec"}, "timestamp": 1791096631824}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:watch", "message": "zip changed, waiting one interval", "data": {"zip": "export.zip"}, "timestamp": 1791096631824}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "ab8264d776ec", "state": "idle"}, "timestamp": 1791096635550}
+{"sessionId": "d6d6ae", "hypothesisId": "E", "location": "sync_server.py:watch", "message": "watch is rebuilding", "data": {"stale": false, "settled": true, "key": "215cc01c598d6350"}, "timestamp": 1791096651832}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "ab8264d776ec", "state": "syncing"}, "timestamp": 1791096652299}
+{"sessionId": "d6d6ae", "hypothesisId": "E", "location": "sync_server.py:sync", "message": "sync skipped, lock held", "data": {"state": "syncing"}, "timestamp": 1791096654079}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "1b9fee36e047", "state": "idle"}, "timestamp": 1791096667369}
+{"sessionId":"d6d6ae","hypothesisId":"D","location":"report_template.html:bindSync","message":"status build differs from page","data":{"status":"1b9fee36e047","page":"ab8264d776ec","state":"idle"},"timestamp":1791096667362}
+{"sessionId":"d6d6ae","hypothesisId":"D","location":"report_template.html:bindSync","message":"status build differs from page","data":{"status":"1b9fee36e047","page":"ab8264d776ec","state":"idle"},"timestamp":1791096704208}
+{"sessionId":"d6d6ae","hypothesisId":"D","location":"report_template.html:bindSync","message":"status build differs from page","data":{"status":"1b9fee36e047","page":"ab8264d776ec","state":"idle"},"timestamp":1791096704214}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "1b9fee36e047", "state": "idle"}, "timestamp": 1791096704229}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "1b9fee36e047", "state": "idle"}, "timestamp": 1791096704239}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "15ba197a79e9", "state": "idle"}, "timestamp": 1791096759381}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "15ba197a79e9", "state": "idle"}, "timestamp": 1791096765173}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "15ba197a79e9", "state": "idle"}, "timestamp": 1791096765174}
+{"sessionId":"d6d6ae","hypothesisId":"D","location":"report_template.html:bindSync","message":"status build differs from page","data":{"status":"15ba197a79e9","page":"1b9fee36e047","state":"idle"},"timestamp":1791096765155}
+{"sessionId":"d6d6ae","hypothesisId":"D","location":"report_template.html:bindSync","message":"status build differs from page","data":{"status":"15ba197a79e9","page":"1b9fee36e047","state":"idle"},"timestamp":1791096765155}
+{"sessionId": "d6d6ae", "hypothesisId": "D", "location": "sync_server.py:do_GET", "message": "page served", "data": {"buildId": "15ba197a79e9", "state": "idle"}, "timestamp": 1791099441345}

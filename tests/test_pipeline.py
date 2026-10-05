@@ -50,6 +50,33 @@ def fixture_xml():
     lines.append(f'<Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="49" durationUnit="min" sourceName="Nike Run Club" startDate="{stamp(start + timedelta(minutes=1))}" endDate="{stamp(end)}">')
     lines.append(stat("DistanceWalkingRunning", start, end, sum="5.6", unit="km"))
     lines.append("</Workout>")
+    iw = T0 + timedelta(hours=2)
+    ie = iw + timedelta(minutes=15)
+    lines.append(f'<Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="15" durationUnit="min" {WATCH} startDate="{stamp(iw)}" endDate="{stamp(ie)}">')
+    lines.append(stat("DistanceWalkingRunning", iw, ie, sum="1.44", unit="km"))
+    lines.append(stat("HeartRate", iw, ie, average="135", unit="count/min"))
+    lines.append(stat("RunningPower", iw, ie, average="95", unit="W"))
+    lines.append(stat("RunningSpeed", iw, ie, average="5.5", unit="km/hr"))
+
+    def step(a, b, dur, dist, hr, hr_min, spd, pwr):
+        return "\n".join([
+            f'<WorkoutActivity startDate="{stamp(a)}" endDate="{stamp(b)}" duration="{dur}" durationUnit="min">',
+            stat("DistanceWalkingRunning", a, b, sum=dist, unit="km"),
+            stat("HeartRate", a, b, average=hr, minimum=hr_min, unit="count/min"),
+            stat("RunningSpeed", a, b, average=spd, unit="km/hr"),
+            stat("RunningPower", a, b, average=pwr, unit="W"),
+            "</WorkoutActivity>",
+        ])
+
+    lines.append(step(iw, ie, 15, "1.44", "135", "100", "5.5", "90"))
+    cursor = iw
+    for _ in range(3):
+        run_end = cursor + timedelta(minutes=4)
+        lines.append(step(cursor, run_end, 4, "0.40", "140", "120", "6", "100"))
+        walk_end = run_end + timedelta(minutes=1)
+        lines.append(step(run_end, walk_end, 1, "0.08", "125", "110", "4.8", "70"))
+        cursor = walk_end
+    lines.append("</Workout>")
     for _ in range(2):
         s = T0 + timedelta(hours=10)
         lines.append(f'<Workout workoutActivityType="HKWorkoutActivityTypeHighIntensityIntervalTraining" duration="20" durationUnit="min" sourceName="Sworkit" startDate="{stamp(s)}" endDate="{stamp(s + timedelta(minutes=20))}">')
@@ -90,7 +117,24 @@ class PipelineTest(unittest.TestCase):
 
     def test_copies_and_duplicates_are_dropped(self):
         self.assertEqual(self.payload["dropped"], {"duplicate": 1, "overlap:Nike Run Club": 1})
-        self.assertEqual(len(self.payload["allRuns"]), 1)
+        self.assertEqual(len(self.payload["allRuns"]), 2)
+
+    def test_run_walk_is_separate_from_steady(self):
+        walks = self.payload["runWalks"]
+        self.assertEqual(len(walks), 1)
+        self.assertEqual(walks[0]["kind"], "4-1")
+        self.assertEqual(walks[0]["n"], 3)
+        self.assertAlmostEqual(walks[0]["rec"], 30)
+        self.assertAlmostEqual(walks[0]["runDist"], 0.4)
+        self.assertIsNone(self.payload["runs"][0].get("runWalk"))
+        marked = next(r for r in self.payload["runs"] if r.get("runWalk"))
+        self.assertEqual(marked["runWalk"], "4-1")
+        self.assertFalse(marked["steady"])
+        strides = []
+        for _ in range(6):
+            strides.append({"dur": 0.5, "dist": 0.1, "hr": 160, "hr_min": 150, "spd": 12, "pwr": 200})
+            strides.append({"dur": 1.0, "dist": 0.08, "hr": 120, "hr_min": 100, "spd": 5, "pwr": 80})
+        self.assertIsNone(hp.classify_run_walk(strides, 9))
 
     def test_night_spans_midnight_and_nap_is_separate(self):
         nights = {n["date"]: n for n in self.payload["recovery"]["nights"]}
