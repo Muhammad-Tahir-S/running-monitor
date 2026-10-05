@@ -217,6 +217,7 @@
     <a href="#session">A run</a>
     <a href="#durability">Durability</a>
     <a href="#curve">Best efforts</a>
+    <a href="#fatigue">Fatigue</a>
     <h4>Load</h4>
     <a href="#volume">Volume</a>
     <a href="#economy">Economy</a>
@@ -421,6 +422,16 @@
     <div class="panel" id="mmpSpd"></div>
   </div>
 
+  <h2 id="fatigue">Fatigue curve</h2>
+  <p class="note">Couzens fits best power against duration. The slope is the fatigue index. When duration doubles, power falls by 1 − 2 to that power. He also describes that fall as about two thirds of the index, so an index of −0.10 is a fall of about 6.7% (<a href="https://alancouzens.com/endurancecorner/2015/09/fatigue-curves/">Fatigue Curves, 2015</a>; <a href="http://alancouzens.blogspot.com/2013/11/fatigue-curve-calculator.html">calculator, 2013</a>). A fall under 8% is what he asks before an athlete holds an easy aerobic effort for about 10 hours. A very flat long-course curve falls about 5–6%. The value at 1 hour on the line is his FTP-style estimate. It is the line, not a 60-minute test (C19).</p>
+  <p class="note">A lactate test can stand in for the long efforts. He finds the lactate curve falls about twice as fast as this field curve (<a href="http://alancouzens.blogspot.com/2012/04/time-for-lactate-test.html">2012</a>). This export has no lactate. The points are the best mean power and speed in the watch samples. Mean power stands in for normalized power. A run–walk is not in these best efforts.</p>
+  <p class="note">An earlier post uses the same name for how tiredness clears (<a href="http://alancouzens.blogspot.com/2009/10/fatigue-curve.html">The Fatigue Curve, 2009</a>). Phase 0 clears inside the session. That is the rest in an interval. Phase 1 is fuel, about 1 to 4 days. That is a hard day, then an easy day. Phase 2 is muscle repair. A loading block needs a break of about 7 to 14 days for it. Phase 3 is the stress system. It needs a break of months (C20). Decoupling on one run measures drift inside that run (C2). The slope below measures how best power falls as the effort gets longer.</p>
+  <div class="stats" id="fatigueStats"></div>
+  <div id="fatigueRead"></div>
+  <div class="panel" id="fatiguePwr"></div>
+  <div class="panel" id="fatigueSpd"></div>
+  <div class="scroll"><table id="fatigueTable"></table></div>
+
   <h2 id="volume">Volume and work</h2>
   <p class="note">The hours include every workout: runs, rides, walks, and strength. Couzens treats monthly volume as the base dose (C8). <span id="droppedNote"></span> The calorie chart is walk and run calories only. When the watch is calibrated, Apple reports 0 ± 9 percent against a lab cart. Other studies often find a calorie error above 10 percent.</p>
   <div class="panel" id="volChart"></div>
@@ -544,6 +555,8 @@
     <dd>A copy of a Watch workout from another app, such as Nike Run Club or Sworkit, is removed when it overlaps the Watch workout by half or more. Exact duplicates are removed (M1).</dd>
     <dt>Run–walk steps</dt>
     <dd>A Watch run whose steps repeat 4 min / 1 min, 9 min / 1 min, or 12 min / 3 min, at least three times, is a run–walk (M6). It is not scored as a steady run (C3). Recovery on a walk is the run step’s average heart rate minus the lowest heart rate on that walk.</dd>
+    <dt>Fatigue curve</dt>
+    <dd>Best mean power and best mean speed at each duration come from the watch samples (M4). The line is output = anchor × hours ^ index. The anchor is the value at 1 hour. The percent fall when duration doubles is 1 − 2^index (C19). The four recovery phases are a different use of the same name (C20). This export has no lactate test.</dd>
     <dt>Aerobic threshold</dt>
     <dd>Couzens finds it from the first rise in lactate. This export has no lactate. A steady run with decoupling inside ±5 percent is only a candidate heart rate (C6).</dd>
     <dt>Readiness</dt>
@@ -662,6 +675,20 @@ function fmtMonth(ms) {
   const d = new Date(ms);
   return MONTHS[d.getUTCMonth()] + " " + String(d.getUTCFullYear()).slice(2);
 }
+function logX(min, max, left, right) {
+  const a = Math.log(min), span = Math.log(max) - a || 1;
+  return {
+    to(v) { return left + (Math.log(v) - a) / span * (right - left); },
+    inv(px) { return Math.exp(a + (px - left) / (right - left) * span); }
+  };
+}
+function logY(min, max, top, bottom) {
+  const a = Math.log(min), span = Math.log(max) - a || 1;
+  return {
+    to(v) { return bottom + (Math.log(v) - a) / span * (top - bottom); },
+    inv(px) { return Math.exp(a + (px - bottom) / (top - bottom) * span); }
+  };
+}
 function yMap(min, max, top, bottom) {
   const span = max - min || 1;
   return {
@@ -742,9 +769,9 @@ function mount(host, spec) {
     ctx.fillStyle = COL.muted;
     ctx.strokeStyle = COL.grid;
     ctx.lineWidth = 1;
-    const XS = xMap(x0, x1, pad.l, w - pad.r);
-    const YS = yMap(y0, y1, pad.t, height - pad.b);
-    const yTicks = ticks(y0, y1, 4);
+    const XS = spec.xType === "log" ? logX(x0, x1, pad.l, w - pad.r) : xMap(x0, x1, pad.l, w - pad.r);
+    const YS = spec.yType === "log" ? logY(y0, y1, pad.t, height - pad.b) : yMap(y0, y1, pad.t, height - pad.b);
+    const yTicks = ticks(y0, y1, 4).filter(v => spec.yType !== "log" || v > 0);
     ctx.textAlign = "right";
     yTicks.forEach(v => {
       const y = YS.to(v);
@@ -758,6 +785,7 @@ function mount(host, spec) {
     let xTicks;
     if (spec.xType === "time") xTicks = timeTicks(x0, x1);
     else if (spec.xLabels) xTicks = spec.xLabels.map((_, i) => i);
+    else if (spec.logTicks) xTicks = spec.logTicks.filter(v => v > 0 && v >= x0 && v <= x1);
     else xTicks = ticks(x0, x1, spec.xTicks || 5);
     xTicks.forEach(v => {
       const x = XS.to(v);
@@ -796,12 +824,22 @@ function mount(host, spec) {
     const xs = all.map(d => d.x);
     let x0, x1;
     if (spec.xDomain) { x0 = spec.xDomain[0]; x1 = spec.xDomain[1]; }
+    else if (spec.xType === "log") {
+      const pos = xs.filter(v => v > 0);
+      x0 = Math.min(...pos) / 1.25;
+      x1 = Math.max(...pos) * 1.25;
+    }
     else { x0 = Math.min(...xs); x1 = Math.max(...xs); if (spec.xType !== "time") { const p = padDomain(x0, x1); x0 = p[0]; x1 = p[1]; } else { const g = (x1 - x0) * 0.03 || 86400000; x0 -= g; x1 += g; } }
     const yVals = all.filter(d => d.axis !== "y2").map(d => d.y);
     (spec.hlines || []).forEach(h => { if ((h.axis || "y") !== "y2") { yVals.push(h.y); } });
     (spec.bands || []).forEach(b => { if ((b.axis || "y") !== "y2") { yVals.push(b.y0, b.y1); } });
     let y0, y1;
     if (spec.yDomain) { y0 = spec.yDomain[0]; y1 = spec.yDomain[1]; }
+    else if (spec.yType === "log") {
+      const pos = yVals.filter(v => v > 0);
+      y0 = Math.min(...pos) / 1.12;
+      y1 = Math.max(...pos) * 1.12;
+    }
     else { const p = padDomain(Math.min(...yVals), Math.max(...yVals)); y0 = p[0]; y1 = p[1]; }
     let y2a = null, y2b = null;
     const y2vals = all.filter(d => d.axis === "y2").map(d => d.y);
@@ -1364,6 +1402,83 @@ function renderDurability() {
       data: rows.map(r => ({ x: r.dur, y: r.decP, id: r.id, open: !r.steady, tip: tipRun(r) }))
     }]
   });
+}
+
+function fatigueLine(anchor, index, mins) {
+  const lo = Math.min(...mins), hi = Math.max(...mins);
+  const line = [];
+  const steps = 24;
+  for (let i = 0; i <= steps; i++) {
+    const min = Math.exp(Math.log(lo) + (Math.log(hi) - Math.log(lo)) * i / steps);
+    line.push({ x: min, y: anchor * Math.pow(min / 60, index) });
+  }
+  return line;
+}
+function renderFatigue() {
+  const F = EV.fatigue;
+  const stats = document.getElementById("fatigueStats");
+  const read = document.getElementById("fatigueRead");
+  const table = document.getElementById("fatigueTable");
+  if (!F || !F.power) {
+    stats.innerHTML = "";
+    read.innerHTML = '<p class="note">Fewer than three durations have a best power. The curve needs three (C19).</p>';
+    table.innerHTML = "";
+    return;
+  }
+  const fade = F.power.fade;
+  const steep = fade > 8;
+  stats.innerHTML =
+    statHtml(fmt(F.power.index, 3), "Fatigue index, power")
+    + statHtml(fmt(fade, 1) + "%", "Power fall when duration doubles")
+    + statHtml(fmt(F.power.hourW, 0) + " W", "Power at 1 hour on the line")
+    + (F.speed ? statHtml(fmt(F.speed.fade, 1) + "%", "Speed fall when duration doubles") : "")
+    + (F.speed && F.speed.hourPace ? statHtml(fmtPace(F.speed.hourPace) + " /km", "Pace at 1 hour on the line") : "");
+  const shape = steep
+    ? "Best power falls " + fmt(fade, 1) + "% each time the duration doubles. Couzens asks for a fall under 8% before an athlete holds an easy aerobic effort for about 10 hours. This curve is steeper than that line. The long end is the weaker side. Easy volume is what moves that end (C8). A 5 km is a short race, so the 8% line describes the shape. It is a 10-hour benchmark."
+    : "Best power falls " + fmt(fade, 1) + "% each time the duration doubles. That sits inside the band Couzens gives for a long easy effort, a fall under 8%, with about 5–6% for a very flat curve. The long end is already the stronger side. A 5 km speed block works the short end (C11, C14).";
+  const reach = F.longest < 60
+    ? " The longest best effort in this file is " + F.longest + " minutes. A point past that duration would be an extension of the line."
+    : " The line includes a best effort of " + F.longest + " minutes.";
+  read.innerHTML = '<p class="note">' + esc(shape + reach) + "</p>";
+  const powers = F.points.filter(p => p.pwr != null);
+  const ticks = powers.map(p => p.min);
+  mount(document.getElementById("fatiguePwr"), {
+    height: 320,
+    xType: "log",
+    yType: "log",
+    logTicks: ticks,
+    xAxis: "Duration (min), log scale",
+    yLabel: "Best power (W), log scale",
+    yDigits: 0,
+    xDigits: 0,
+    legend: [{ name: "Best power", color: COL.pwr }, { name: "Fit (C19)", color: COL.ink }],
+    series: [
+      { color: COL.ink, kind: "line", width: 1.6, data: fatigueLine(F.power.hourW, F.power.index, ticks) },
+      { color: COL.pwr, kind: "scatter", radius: 4.5, data: powers.map(p => ({ x: p.min, y: p.pwr, tip: p.min + " min · " + fmt(p.pwr, 0) + " W · fit " + fmt(p.fitPwr, 0) + " W" })) }
+    ]
+  });
+  const speeds = F.points.filter(p => p.spd != null);
+  if (F.speed && speeds.length) {
+    mount(document.getElementById("fatigueSpd"), {
+      height: 280,
+      xType: "log",
+      yType: "log",
+      logTicks: speeds.map(p => p.min),
+      xAxis: "Duration (min), log scale",
+      yLabel: "Best speed (km/h), log scale",
+      yDigits: 1,
+      xDigits: 0,
+      legend: [{ name: "Best speed", color: COL.pace }, { name: "Fit", color: COL.ink }],
+      series: [
+        { color: COL.ink, kind: "line", width: 1.6, data: fatigueLine(F.speed.hourKmh, F.speed.index, speeds.map(p => p.min)) },
+        { color: COL.pace, kind: "scatter", radius: 4.5, data: speeds.map(p => ({ x: p.min, y: p.spd, tip: p.min + " min · " + fmt(p.spd, 1) + " km/h · " + fmtPace(p.pace) + "/km" })) }
+      ]
+    });
+  }
+  table.innerHTML = "<thead><tr><th>Minutes</th><th>Best power</th><th>Fit power</th><th>Best pace</th><th>Fit pace</th></tr></thead><tbody>"
+    + F.points.map(p => "<tr><td>" + p.min + "</td><td>" + fmt(p.pwr, 0) + "</td><td>" + fmt(p.fitPwr, 0) + "</td><td>"
+      + (p.pace == null ? "—" : fmtPace(p.pace)) + "</td><td>" + (p.fitPace == null ? "—" : fmtPace(p.fitPace)) + "</td></tr>").join("")
+    + "</tbody>";
 }
 
 function renderMMP() {
@@ -2199,6 +2314,7 @@ document.getElementById("logBody").addEventListener("click", (ev) => {
 });
 
 renderMMP();
+renderFatigue();
 renderVolume();
 renderAll();
 trackSections();

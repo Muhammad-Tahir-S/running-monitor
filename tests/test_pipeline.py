@@ -160,6 +160,9 @@ class PipelineTest(unittest.TestCase):
         self.assertTrue(all(c["rule"] in couzens.RULES for c in e["base"]))
         self.assertEqual(e["records"][2]["name"], "5 km")
         self.assertEqual(e["records"][2]["date"], "2026-09-29")
+        self.assertGreaterEqual(e["fatigue"]["power"]["n"], 3)
+        self.assertIn("C19", couzens.RULES)
+        self.assertIn("C20", couzens.RULES)
 
 
 class ReadinessTest(unittest.TestCase):
@@ -190,6 +193,25 @@ class ReadinessTest(unittest.TestCase):
         p, today = self.payload(50, 60, 8)
         r = couzens.readiness(p, hp.load_config(), {"entries": [{"date": today, "soreness": 2}]}, datetime.fromisoformat(today).date())
         self.assertEqual(r["level"], "recovery")
+
+
+class FatigueTest(unittest.TestCase):
+    def test_index_of_minus_0_10_fades_about_6_7_percent(self):
+        mmp = []
+        for minutes in (5, 20, 60):
+            hours = minutes / 60
+            mmp.append({"min": minutes, "pwr": 263 * hours ** -0.10, "spd": 16 * hours ** -0.07, "pace": 60 / (16 * hours ** -0.07)})
+        fit = couzens.fatigue_curve(mmp)
+        self.assertAlmostEqual(fit["power"]["index"], -0.10, places=2)
+        self.assertAlmostEqual(fit["power"]["fade"], 6.7, delta=0.05)
+        self.assertAlmostEqual(fit["power"]["hourW"], 263, places=0)
+        self.assertAlmostEqual(fit["speed"]["fade"], (1 - 2 ** -0.07) * 100, delta=0.1)
+
+    def test_two_points_do_not_fit(self):
+        self.assertIsNone(couzens.fatigue_curve([
+            {"min": 5, "pwr": 300, "spd": 16},
+            {"min": 20, "pwr": 250, "spd": 14},
+        ]))
 
 
 class JournalTest(unittest.TestCase):

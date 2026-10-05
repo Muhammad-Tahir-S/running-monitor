@@ -125,6 +125,33 @@ one step. Two or more flags give recovery at most.
 higher level. That cycle is the test of adaptation, not fatigue alone.
 Source: his replies under The Science of Decoupling.
 
+## Fatigue curve
+
+**C19 Fatigue index (Couzens).** Plot best power (or speed) against duration and fit
+output = anchor × (hours ^ index). The anchor is the value at 1 hour. He treats that
+as an FTP-style estimate from the line, not a 60-minute test. The index is the slope.
+When duration doubles, output falls by 1 − 2^index. An index of −0.10 is a fall of
+about 6.7%, which is also about two thirds of the index. A fall under 8% is what he
+asks before an athlete tries to hold an easy aerobic effort for about 10 hours.
+A very flat long-course curve falls about 5–6%. A 5 km is a short race, so the 8%
+line describes the shape of the curve. It is not a 5 km target.
+**Adapted:** the points are the best mean power and speed in the watch samples at
+1, 2, 5, 10, 20, 30, 45, and 60 minutes. The fit needs three durations. Mean power
+stands in for normalized power. There is no lactate test here. He finds a lactate
+curve falls about twice as fast as this field curve, so lactate would only be a proxy.
+Sources: [Fatigue Curves, 2015](https://alancouzens.com/endurancecorner/2015/09/fatigue-curves/),
+[Fatigue Curve Calculator, 2013](http://alancouzens.blogspot.com/2013/11/fatigue-curve-calculator.html),
+[Time for a lactate test?, 2012](http://alancouzens.blogspot.com/2012/04/time-for-lactate-test.html).
+
+**C20 Four phases of tiredness (Couzens).** A different post uses the same name for how
+fatigue clears. Phase 0 clears inside the session (the rest in an interval). Phase 1
+is fuel, about 24–96 hours (a hard day, then an easy day). Phase 2 is muscle repair.
+The gap between hard days is not enough for it, so a loading block ends with a break
+of about 7–14 days. Phase 3 is the stress system. It needs a break of months, or a
+little fatigue carries into the next year. Decoupling (C2) is phase 0 on one run.
+The slope in C19 is a different number.
+Source: [The Fatigue Curve, 2009](http://alancouzens.blogspot.com/2009/10/fatigue-curve.html).
+
 ## Plan rules (not Couzens)
 
 **P1 Week shape.** Two speed runs, two easy runs, and one long run each week.

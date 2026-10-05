@@ -30,6 +30,8 @@ RULES = {
     "C16": ("HRV quartile sets the day: top 25% intensity, middle aerobic, bottom 25% recovery, bottom 3% rest", "https://alancouzens.com/blog/overtraining_HRV.html"),
     "C17": ("Readiness combines HRV, resting HR, sleep, mood, soreness, fatigue, and stress", "https://alancouzens.com/TP/athletes.cgi/blog/readiness"),
     "C18": ("Adaptation is fatigue, then recovery, then a higher level", DEC),
+    "C19": ("Best power against duration gives a fatigue index. When duration doubles, power falls by 1 − 2 to that power", "https://alancouzens.com/endurancecorner/2015/09/fatigue-curves/"),
+    "C20": ("Tiredness clears in four phases: inside the session, over 1–4 days, over 1–2 weeks, and over months", "http://alancouzens.blogspot.com/2009/10/fatigue-curve.html"),
     "P1": ("Plan week: two speed runs, two easy runs, one long run", None),
     "P2": ("Plan 5K pace means the 5K you can run now", None),
     "P3": ("Goal pace and faster stay a short set", None),
@@ -297,6 +299,61 @@ def weeks_table(p, cfg, bands, as_of):
         rows.append(row)
         week += timedelta(days=7)
     return rows
+
+
+def _log_fit(pairs):
+    """Log-log fit of output against duration in hours.
+
+    Couzens reads the value at 1 hour as the FTP-style anchor, and the exponent
+    as the fatigue index. The percent fall when duration doubles is 1 − 2^index.
+    """
+    xs, ys = [], []
+    for minutes, value in pairs:
+        if minutes and value and value > 0:
+            xs.append(math.log(minutes / 60.0))
+            ys.append(math.log(value))
+    n = len(xs)
+    if n < 3:
+        return None
+    mx, my = sum(xs) / n, sum(ys) / n
+    var = sum((x - mx) ** 2 for x in xs)
+    if var <= 0:
+        return None
+    slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / var
+    anchor = math.exp(my - slope * mx)
+    return {"n": n, "index": slope, "anchor": anchor, "fade": (1 - 2 ** slope) * 100}
+
+
+def fatigue_curve(mmp):
+    """Rule C19. Best efforts already in the payload. Three durations minimum."""
+    power = _log_fit([(p.get("min"), p.get("pwr")) for p in mmp])
+    speed = _log_fit([(p.get("min"), p.get("spd")) for p in mmp])
+    if not power and not speed:
+        return None
+    points = []
+    for p in mmp:
+        row = {"min": p.get("min"), "pwr": p.get("pwr"), "spd": p.get("spd"), "pace": p.get("pace")}
+        minutes = p.get("min")
+        if power and minutes:
+            row["fitPwr"] = r(power["anchor"] * (minutes / 60) ** power["index"], 1)
+        if speed and minutes:
+            fit = speed["anchor"] * (minutes / 60) ** speed["index"]
+            row["fitSpd"] = r(fit, 2)
+            row["fitPace"] = r(60 / fit, 2) if fit else None
+        points.append(row)
+    longest = max((p["min"] for p in points if p.get("min") and (p.get("pwr") or p.get("spd"))), default=None)
+
+    def pack(fit, extra):
+        if not fit:
+            return None
+        return {"n": fit["n"], "index": r(fit["index"], 4), "fade": r(fit["fade"], 1), **extra}
+
+    return {
+        "power": pack(power, {"hourW": r(power["anchor"], 1)}) if power else None,
+        "speed": pack(speed, {"hourKmh": r(speed["anchor"], 2), "hourPace": r(60 / speed["anchor"], 2)}) if speed else None,
+        "longest": longest,
+        "points": points,
+    }
 
 
 def peak_volume(weeks, cfg):
@@ -570,6 +627,7 @@ def evaluate(p, cfg, journal):
         "baseMax": len(base),
         "plan": plan,
         "recovery": rec,
+        "fatigue": fatigue_curve(p.get("mmp") or []),
         "actions": actions(cfg, base, plan, ready, rec, weeks, bands),
         "newRuns": new_runs,
         "rules": [{"id": k, "text": v[0], "url": v[1]} for k, v in RULES.items()],
