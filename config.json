@@ -51,6 +51,7 @@
     "cool_c": 26,
     "long_run_ratio": 1.5,
     "long_run_min": 40,
+    "easy_pace_hr": [110, 145],
     "easy_share_min": 0.8,
     "vo2_two_speed_days_below": 40,
     "speed_volume_floor": 0.66,

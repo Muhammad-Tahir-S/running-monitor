@@ -321,7 +321,7 @@
   <div class="panel" id="weekEasy"></div>
 
   <h2 id="progress">Progress by week</h2>
-  <p class="note">One row per Monday-start week, newest first. The same table is saved to metrics/weeks.csv on every sync, so git keeps the history. Easy pace and EF use runs of 20 minutes or more in the easy heart-rate band (C4).</p>
+  <p class="note">One row per Monday-start week, newest first. The same table is saved to metrics/weeks.csv on every sync, so git keeps the history. Easy pace and EF use Apple Watch run workouts of <span data-cfg="filters.min_steady_min"></span> minutes or more whose average heart rate is <span data-cfg="couzens.easy_pace_hr.0"></span>–<span data-cfg="couzens.easy_pace_hr.1"></span>. A walk is not included. A 4–1, 9–1, or 12–3 still counts, because the workout is a run (C4).</p>
   <div class="scroll"><table id="progressTable"></table></div>
 
   <h2 id="base">Base building</h2>
@@ -2184,7 +2184,7 @@ function renderPlanWeeks() {
     yLabel: "Easy pace (min/km), faster up",
     yDigits: 1,
     yDomain: paces.length ? [Math.max(...paces) + 0.4, Math.min(...paces) - 0.4] : [12.5, 9],
-    legend: [{ name: EASY_LABEL + ", " + CFG.filters.min_steady_min + " min or more", color: COL.late }],
+    legend: [{ name: CFG.couzens.easy_pace_hr[0] + "–" + CFG.couzens.easy_pace_hr[1] + " bpm, run workouts, " + CFG.filters.min_steady_min + " min or more", color: COL.late }],
     vlines: [{ x: planStart, color: COL.ink }],
     series: [{
       color: COL.late, kind: "line", width: 2,

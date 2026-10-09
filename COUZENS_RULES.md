@@ -35,6 +35,11 @@ that are alike: same heart-rate band, similar conditions. The report tracks EF i
 easy heart-rate band, never across all runs mixed.
 Source: [Kona conditions](https://alancouzens.com/blog/kona_conditions.html) (EF compared to
 the month of home training).
+**Adapted, weekly easy pace and easy EF.** Those two columns use Apple Watch run workouts
+of at least `filters.min_steady_min` minutes whose average heart rate is inside
+`couzens.easy_pace_hr` (110–145). A walk workout is not included. A 4–1, 9–1, or 12–3
+is still a run workout, so it is included. Pace and EF are the averages of that whole
+workout. The like-for-like EF comparison elsewhere on the page stays on `zones.easy_hr`.
 
 **C5 Heat lowers EF (Couzens).** Heat and fluid loss raise heart rate at the same output.
 His Kona crew lost about 17% EF overall and about 20% on the run. A hot easy run is not a

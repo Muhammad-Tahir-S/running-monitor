@@ -237,9 +237,8 @@ def readiness(p, cfg, journal, day):
 
 def weeks_table(p, cfg, bands, as_of):
     c = cfg["couzens"]
-    z = cfg["zones"]
     f = cfg["filters"]
-    easy_lo, easy_hi = z["easy_hr"]
+    pace_lo, pace_hi = c["easy_pace_hr"]
     speed = next((b for b in bands if b["key"] == "speed"), None)
     start = monday(date.fromisoformat(cfg["weeks_from"]))
     last = monday(as_of)
@@ -274,7 +273,7 @@ def weeks_table(p, cfg, bands, as_of):
         durs = [x["dur"] for x in alls if x["dur"]]
         longest = max(steady_runs, key=lambda x: x["dur"], default=None)
         long_dec = longest["decP"] if longest and longest["dur"] >= c["long_run_min"] else None
-        easy_runs = [x for x in steady_runs if x["dur"] >= f["min_steady_min"] and easy_lo <= x["hr"] <= easy_hi]
+        easy_runs = [x for x in runs if x["dur"] >= f["min_steady_min"] and x.get("hr") is not None and pace_lo <= x["hr"] <= pace_hi]
         days = data.get("days", [])
         row = {
             "week": week.isoformat(),

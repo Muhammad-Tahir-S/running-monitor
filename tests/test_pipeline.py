@@ -248,6 +248,25 @@ class ReadinessTest(unittest.TestCase):
         self.assertEqual(r["level"], "recovery")
 
 
+class EasyPaceTest(unittest.TestCase):
+    def test_easy_pace_uses_110_to_145_on_run_workouts(self):
+        cfg = hp.load_config()
+        cfg["weeks_from"] = "2026-09-28"
+        runs = [
+            {"date": "2026-09-28", "dur": 30, "hr": 120, "pace": 11.0, "ef": 0.80},
+            {"date": "2026-09-29", "dur": 40, "hr": 126, "pace": 10.5, "ef": 0.90, "runWalk": "4-1"},
+            {"date": "2026-09-30", "dur": 30, "hr": 160, "pace": 8.0, "ef": 1.1},
+            {"date": "2026-10-01", "dur": 30, "hr": 105, "pace": 12.0, "ef": 0.7},
+            {"date": "2026-10-02", "dur": 15, "hr": 120, "pace": 11.0, "ef": 0.8},
+        ]
+        payload = {"allRuns": [], "runs": runs, "days": [], "recovery": {"nights": []}, "rhr": [], "hrv": []}
+        rows = couzens.weeks_table(payload, cfg, [], datetime(2026, 10, 4).date())
+        week = next(row for row in rows if row["week"] == "2026-09-28")
+        self.assertEqual(week["easyPace"], 10.75)
+        self.assertEqual(week["easyEf"], 0.85)
+        self.assertIsNone(week["longDec"])
+
+
 class FatigueTest(unittest.TestCase):
     def test_index_of_minus_0_10_fades_about_6_7_percent(self):
         mmp = []
