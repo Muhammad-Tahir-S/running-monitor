@@ -6,7 +6,7 @@
     "C11 Speed sits at 3K\u201310K pace now": "fail",
     "C12 2 speed days": "partial",
     "C13 Volume stays near the peak": "pass",
-    "C17 Speed on ready mornings": "partial",
+    "C17 Speed on ready mornings": "fail",
     "C2 Long run stays durable": "na",
     "C2 Long steady runs are durable": "na",
     "C4 Faster at the same easy heart rate": "partial",
@@ -18,10 +18,10 @@
     "P2 Minutes at today's 5K pace": "fail",
     "P3 Goal pace stays a short set": "partial"
   },
-  "couzensScore": 2.0,
+  "couzensScore": 1.5,
   "nikeScore": 3.0,
   "planWeek": 2,
-  "readiness": "aerobic",
+  "readiness": "rest",
   "records": {
     "1 km": "4:46",
     "1 mile": "8:44",
