@@ -30,9 +30,9 @@
   },
   "week": {
     "bridge": 0.5,
-    "easyEf": null,
+    "easyEf": 0.859,
     "easyH": 5.06,
-    "easyPace": null,
+    "easyPace": 10.86,
     "fast": 3.7,
     "fivek": 0.5,
     "goal": 0.2,
