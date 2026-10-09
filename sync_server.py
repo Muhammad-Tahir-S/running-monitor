@@ -7,6 +7,7 @@
 
 import csv
 import hashlib
+import importlib
 import io
 import json
 import os
@@ -139,6 +140,18 @@ def commit(cfg, message):
             subprocess.run(["git", "commit", "-m", message], cwd=HERE, check=True, capture_output=True)
     except (OSError, subprocess.CalledProcessError) as exc:
         print("git commit skipped:", exc)
+
+
+def reload_rules():
+    """Load metric code from disk. A long-running server would otherwise keep the old functions."""
+    importlib.reload(health_payload)
+    importlib.reload(couzens)
+
+
+def rebuild():
+    """Recompute the report from the zip already in the folder."""
+    reload_rules()
+    return sync(force=True)
 
 
 def sync(force=False):
@@ -319,6 +332,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if route == "/sync":
                 self._json(200, sync(force="force=1" in self.path))
+            elif route == "/rebuild":
+                self._json(200, rebuild())
             elif route == "/journal":
                 length = min(int(self.headers.get("Content-Length") or 0), 20000)
                 self._json(200, save_journal(json.loads(self.rfile.read(length) or b"{}")))

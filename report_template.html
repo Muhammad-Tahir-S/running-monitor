@@ -37,7 +37,7 @@
     padding: 18px 12px 24px; font-size: 14px;
   }
   .brand b { display: block; font-family: Palatino, "Iowan Old Style", Georgia, serif; font-size: 18px; }
-  .side-sync { margin: 12px 0 6px; }
+  .side-sync { margin: 12px 0 6px; display: flex; flex-direction: column; gap: 6px; }
   .side-sync .sync { width: 100%; }
   .side-sync .src { margin: 6px 0 0; font-size: 12px; line-height: 1.35; }
   .side nav { display: block; margin: 0; }
@@ -68,7 +68,7 @@
     }
     .brand span, .side-sync .src { display: none; }
     .brand b { font-size: 15px; white-space: nowrap; }
-    .side-sync { margin: 0; }
+    .side-sync { margin: 0; flex-direction: row; }
     .side-sync .sync { width: auto; }
     .side nav { display: flex; flex: 1 1 auto; min-width: 0; gap: 2px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .side nav::-webkit-scrollbar { display: none; }
@@ -213,7 +213,8 @@
   </div>
   <div class="side-sync">
     <button class="sync" id="syncBtn" type="button">Sync</button>
-    <p class="src" id="syncNote">Sync reads the newest zip in the export folder.</p>
+    <button class="sync" id="rebuildBtn" type="button">Rebuild</button>
+    <p class="src" id="syncNote">Sync reads the newest zip in the export folder. Rebuild recomputes from that zip.</p>
   </div>
   <nav aria-label="Sections">
     <h4>This week</h4>
@@ -621,7 +622,7 @@
     <dt>Readiness</dt>
     <dd>The day starts from the SDNN quartile (C16). A resting heart rate 5% over its 28-day median, a night under the sleep target, a known-pace heart rate 5% off normal (C15), or a journal score of 2 or less each lower the day by one level. Two flags give a recovery day at most (C17).</dd>
     <dt>Process</dt>
-    <dd>Export from the Health app on the phone. Put the zip in this folder, or replace the export.zip link. Double-click "Health Report.command". It starts the service and opens the page. The service watches the folder and rebuilds when a newer export appears. The Sync button forces a check.</dd>
+    <dd>Export from the Health app on the phone. Put the zip in this folder, or replace the export.zip link. Double-click "Health Report.command". It starts the service and opens the page. The service watches the folder and rebuilds when a newer export appears. Sync checks for that newer zip. Rebuild recomputes every metric from the zip already in the folder, including after a change to the rules or config.json.</dd>
     <dt>Sources</dt>
     <dd>Couzens: alancouzens.com and alancouzens.blogspot.com; each rule links its post. Apple: “Using Apple Watch to measure heart rate, calorimetry, and activity,” November 2024. Heart-rate studies: npj Digital Medicine, 2025. ASD-STE100 is the controlled-language standard for the sentences on this page.</dd>
   </dl>
@@ -2334,30 +2335,38 @@ function trackSections() {
 
 function bindSync() {
   const btn = document.getElementById("syncBtn");
+  const rebuildBtn = document.getElementById("rebuildBtn");
   const note = document.getElementById("syncNote");
-  btn.title = "Shift-click to rebuild even when the export has no new record.";
+  btn.title = "Check the export folder for a newer zip.";
+  rebuildBtn.title = "Recompute every metric from the zip already in the folder.";
   if (!SERVED) {
     note.textContent = "Opened as a file. Double-click Health Report.command to sync.";
     return;
   }
   note.textContent = "Watching the export folder. Data through " + PAY.asOf + ".";
-  btn.addEventListener("click", async ev => {
+  let busyLabel = "Syncing";
+  async function run(path, label, working) {
+    busyLabel = label;
     btn.disabled = true;
-    note.textContent = "Checking the export folder.";
+    rebuildBtn.disabled = true;
+    note.textContent = working;
     try {
-      const res = await fetch("/sync" + (ev.shiftKey ? "?force=1" : ""), { method: "POST", headers: { "X-Health-Report": "1" } });
+      const res = await fetch(path, { method: "POST", headers: { "X-Health-Report": "1" } });
       const body = await res.json();
-      note.textContent = body.message || "Sync finished.";
+      note.textContent = body.message || label + " finished.";
       if (body.updated) location.reload();
     } catch (err) {
       note.textContent = "The service is not running. Double-click Health Report.command.";
     }
     btn.disabled = false;
-  });
+    rebuildBtn.disabled = false;
+  }
+  btn.addEventListener("click", () => run("/sync", "Syncing", "Checking the export folder."));
+  rebuildBtn.addEventListener("click", () => run("/rebuild", "Rebuilding", "Recomputing from the zip already in the folder."));
   setInterval(async () => {
     try {
       const s = await (await fetch("/status", { cache: "no-store" })).json();
-      if (s.state === "syncing") note.textContent = "Syncing. " + (s.message || "");
+      if (s.state === "syncing") note.textContent = busyLabel + ". " + (s.message || "");
       else if (s.buildId && s.buildId !== PAY.buildId) location.reload();
     } catch (err) {
       note.textContent = "The service stopped. Double-click Health Report.command.";

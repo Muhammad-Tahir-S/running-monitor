@@ -331,6 +331,26 @@ class SectionToggleTest(unittest.TestCase):
             self.assertNotIn("extra-", block)
 
 
+class RebuildTest(unittest.TestCase):
+    def test_rebuild_reloads_the_rules_and_forces_a_compute(self):
+        seen = {}
+
+        def fake_sync(force=False):
+            seen["force"] = force
+            seen["floor"] = couzens.weeks_table.__code__.co_varnames
+            return {"updated": True, "message": "rebuilt"}
+
+        original = sync_server.sync
+        sync_server.sync = fake_sync
+        try:
+            result = sync_server.rebuild()
+        finally:
+            sync_server.sync = original
+        self.assertTrue(seen["force"])
+        self.assertEqual(result["message"], "rebuilt")
+        self.assertIn('id="rebuildBtn"', Path("report_template.html").read_text())
+
+
 class JournalTest(unittest.TestCase):
     def test_valid_entry(self):
         entry, race = sync_server.clean_entry({"date": "2026-10-02", "mood": "4", "race": {"km": 5, "time": "27:30"}})
