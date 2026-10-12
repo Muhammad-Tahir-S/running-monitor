@@ -29,7 +29,7 @@
     "5 km": "29:49"
   },
   "week": {
-    "aeroH": 2.56,
+    "aeroH": 3.57,
     "bridge": 0.7,
     "easyEf": 0.861,
     "easyH": 6.52,
@@ -45,7 +45,7 @@
     "mile": 4.0,
     "partial": false,
     "rhr": 65.0,
-    "rideH": 0.0,
+    "rideH": 1.5,
     "runH": 2.56,
     "runs": 6,
     "sleep": 6.65,
