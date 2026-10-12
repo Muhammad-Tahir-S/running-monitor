@@ -313,7 +313,7 @@
     </div>
   </div>
   <h3>Week by week</h3>
-  <p class="note">Each point is a Monday-start week. The vertical line is the plan start. The 3K–10K band is the pace you can hold now (C11). The run-hour floor is Couzens' share of the recent peak (C13). Long-run decoupling stays inside ±5% (C2).</p>
+  <p class="note">Each point is a Monday-start week. The vertical line is the plan start. The 3K–10K band is the pace you can hold now (C11). The aerobic-hour floor is Couzens' share of the recent peak (C13). Aerobic hours are run hours plus <span data-cfg="couzens.bike_run_weight"></span> of ride hours under <span data-cfg="zones.hard_bpm"></span> minus <span data-cfg="couzens.bike_hr_offset"></span> bpm. Long-run decoupling stays inside ±5% (C2).</p>
   <div class="panel" id="weekSpeed"></div>
   <div class="grid2">
     <div class="panel" id="weekHours"></div>
@@ -322,7 +322,7 @@
   <div class="panel" id="weekEasy"></div>
 
   <h2 id="progress">Progress by week</h2>
-  <p class="note">One row per Monday-start week, newest first. The same table is saved to metrics/weeks.csv on every sync, so git keeps the history. Easy pace and EF use Apple Watch run workouts of <span data-cfg="filters.min_steady_min"></span> minutes or more whose average heart rate is <span data-cfg="couzens.easy_pace_hr.0"></span>–<span data-cfg="couzens.easy_pace_hr.1"></span>. A walk is not included. A 4–1, 9–1, or 12–3 still counts, because the workout is a run (C4).</p>
+  <p class="note">One row per Monday-start week, newest first. The same table is saved to metrics/weeks.csv on every sync, so git keeps the history. Aerobic hours are run hours plus <span data-cfg="couzens.bike_run_weight"></span> of ride hours whose mean heart rate is under <span data-cfg="zones.hard_bpm"></span> minus <span data-cfg="couzens.bike_hr_offset"></span> bpm (C8). Easy pace and EF use Apple Watch run workouts of <span data-cfg="filters.min_steady_min"></span> minutes or more whose average heart rate is <span data-cfg="couzens.easy_pace_hr.0"></span>–<span data-cfg="couzens.easy_pace_hr.1"></span>. A walk stays out. Pace and EF stay on runs. A 4–1, 9–1, or 12–3 still counts, because the workout is a run (C4).</p>
   <div class="scroll"><table id="progressTable"></table></div>
 
   <h2 id="base">Base building</h2>
@@ -468,7 +468,7 @@
   </div>
 
   <h2 id="volume">Volume and work</h2>
-  <p class="note">The hours include every workout: runs, rides, walks, and strength. Couzens treats monthly volume as the base dose (C8). <span id="droppedNote"></span> The calorie chart is walk and run calories only. When the watch is calibrated, Apple reports 0 ± 9 percent against a lab cart. Other studies often find a calorie error above 10 percent.</p>
+  <p class="note">The hours include every workout: runs, rides, walks, and strength. Couzens treats monthly volume as the base dose (C8). The base check counts a ride with a heart rate under <span data-cfg="zones.hard_bpm"></span> minus <span data-cfg="couzens.bike_hr_offset"></span> bpm at <span data-cfg="couzens.bike_run_weight"></span> of its hours, on top of run hours. The bars stay clock time. <span id="droppedNote"></span> The calorie chart is walk and run calories only. When the watch is calibrated, Apple reports 0 ± 9 percent against a lab cart. Other studies often find a calorie error above 10 percent.</p>
   <div class="panel" id="volChart"></div>
   <button type="button" class="more-btn" data-extra="volume" aria-expanded="false" aria-controls="extra-volume" title="Show the other charts in this section. The sidebar control does the same.">More charts</button>
   <div class="extra" id="extra-volume" hidden>
@@ -503,7 +503,7 @@
     <div class="panel" id="easyHardChart"></div>
     <div class="panel" id="stressChart"></div>
   </div>
-  <p class="note">A workout with a mean heart rate under <span data-cfg="zones.hard_bpm"></span> bpm is easy time. At or above it, the time is hard. The stress estimate counts each hard minute <span data-cfg="zones.hard_weight"></span> times. Acute is 7 days. Chronic is 28 days divided by 4, so both lines are one week. This estimate is not TrainingPeaks TSS.</p>
+  <p class="note">A run with a mean heart rate under <span data-cfg="zones.hard_bpm"></span> bpm is easy time. A ride is easy under that line minus <span data-cfg="couzens.bike_hr_offset"></span> bpm. At or above the line, the time is hard. Ride minutes stay at full length here. The two-thirds weight is the fitness dose (C8), not this stress line. The stress estimate counts each hard minute <span data-cfg="zones.hard_weight"></span> times. Acute is 7 days. Chronic is 28 days divided by 4, so both lines are one week. This estimate is not TrainingPeaks TSS.</p>
   <div class="grid2">
     <div class="panel" id="sleepEfChart"></div>
     <div class="panel" id="sleepPwrChart"></div>
@@ -2023,6 +2023,8 @@ function renderCheckin() {
   if (!cur) return;
   const rows = [
     ["Run hours", "runH", 1, true, "C8"],
+    ["Ride hours", "rideH", 1, true, "C8"],
+    ["Aerobic hours", "aeroH", 1, true, "C8"],
     ["Hard hours, all workouts", "hardH", 1, null, "C7"],
     ["Runs", "runs", 0, null, "P1"],
     ["Speed days", "speedDays", 0, null, "C12"],
@@ -2124,6 +2126,7 @@ function renderPlan() {
     + (s ? statHtml(fmt(w.speed, 1) + " min", "At 3K–10K pace now") : "")
     + statHtml(fmt(w.goal, 1) + " min", "At goal 5K pace")
     + statHtml(fmt(w.mile, 1) + " min", "At sub-7 mile pace")
+    + statHtml(fmt(w.aeroH, 1) + " h", "Aerobic time this week")
     + statHtml(fmt(w.runH, 1) + " h", "Run time this week");
   document.getElementById("nikeTitle").textContent = cp.name + ": " + fmt(plan.nikeScore, 1) + " / " + plan.nikeMax;
   document.getElementById("couzensTitle").textContent = "Couzens: " + fmt(plan.couzensScore, 1) + " / " + plan.couzensMax;
@@ -2157,12 +2160,15 @@ function renderPlanWeeks() {
   mount(document.getElementById("weekHours"), {
     height: 260,
     xType: "time",
-    yLabel: "Run hours",
+    yLabel: "Aerobic hours",
     yDigits: 1,
-    legend: [{ name: "Run hours", color: COL.pwr }].concat(peak ? [{ name: "66–80% of peak (C13)", color: COL.hr }] : []),
+    legend: [{ name: "Aerobic hours", color: COL.pwr }, { name: "Run hours", color: COL.pace }].concat(peak ? [{ name: "66–80% of peak (C13)", color: COL.hr }] : []),
     hlines: peak ? [{ y: floor, color: COL.hr, label: fmt(floor, 1) + " h" }, { y: ceil, color: COL.mark, label: fmt(ceil, 1) + " h" }] : [],
     vlines: [{ x: planStart, color: COL.ink }],
-    series: [{ color: COL.pwr, kind: "line", width: 2, data: rows.map(r => ({ x: r.t, y: r.runH, tip: tipWeek(r, fmt(r.runH, 1) + " h") })) }]
+    series: [
+      { color: COL.pwr, kind: "line", width: 2, data: rows.map(r => ({ x: r.t, y: r.aeroH, tip: tipWeek(r, fmt(r.aeroH, 1) + " aerobic h\n" + fmt(r.runH, 1) + " run h · " + fmt(r.rideH, 1) + " ride h") })) }),
+      { color: COL.pace, kind: "line", width: 1.5, data: rows.map(r => ({ x: r.t, y: r.runH, tip: tipWeek(r, fmt(r.runH, 1) + " run h") })) })
+    ]
   });
   const lim = CFG.couzens.decoupling_limit;
   mount(document.getElementById("weekDec"), {
@@ -2199,6 +2205,8 @@ function renderProgress() {
     ["Week", w => esc(w.week) + (w.partial ? " *" : "")],
     ["Runs", w => w.runs],
     ["Run h", w => fmt(w.runH, 1)],
+    ["Ride h", w => fmt(w.rideH, 1)],
+    ["Aerobic h", w => fmt(w.aeroH, 1)],
     ["Hard h", w => fmt(w.hardH, 1)],
     ["Long min", w => fmt(w.longMin, 0)],
     ["Long dec %", w => fmt(w.longDec, 1)],
