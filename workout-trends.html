@@ -2167,7 +2167,7 @@ function renderPlanWeeks() {
     vlines: [{ x: planStart, color: COL.ink }],
     series: [
       { color: COL.pwr, kind: "line", width: 2, data: rows.map(r => ({ x: r.t, y: r.aeroH, tip: tipWeek(r, fmt(r.aeroH, 1) + " aerobic h · " + fmt(r.runH, 1) + " run h · " + fmt(r.rideH, 1) + " ride h") })) },
-      { color: COL.pace, kind: "line", width: 1.5, data: rows.map(r => ({ x: r.t, y: r.runH, tip: tipWeek(r, fmt(r.runH, 1) + " run h") })) })
+      { color: COL.pace, kind: "line", width: 1.5, data: rows.map(r => ({ x: r.t, y: r.runH, tip: tipWeek(r, fmt(r.runH, 1) + " run h") })) }
     ]
   });
   const lim = CFG.couzens.decoupling_limit;
