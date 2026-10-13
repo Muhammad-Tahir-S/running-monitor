@@ -546,11 +546,12 @@ def build_payload(zpath, cfg=None):
     runs = []
     run_walks = []
     months = defaultdict(lambda: {k: 0.0 for k in (
-        "run_h", "cycle_h", "walk_h", "hiit_h", "strength_h", "other_h", "run_km", "ped_kcal", "other_kcal"
+        "run_h", "cycle_h", "cycle_easy_h", "walk_h", "hiit_h", "strength_h", "other_h", "run_km", "ped_kcal", "other_kcal"
     )})
     hardware_runs = Counter()
     all_runs = []
-    days = defaultdict(lambda: {"easy": 0.0, "hard": 0.0, "run": 0.0})
+    days = defaultdict(lambda: {"easy": 0.0, "hard": 0.0, "run": 0.0, "ride": 0.0})
+    bike_hard = z["hard_bpm"] - cfg["couzens"]["bike_hr_offset"]
 
     for workout in workouts:
         mk = month_key(workout["start"])
@@ -560,7 +561,11 @@ def build_payload(zpath, cfg=None):
         months[mk]["ped_kcal" if bucket in ("run", "walk") else "other_kcal"] += kcal
         day = workout["start"].date().isoformat()
         if workout["hr"]:
-            days[day]["hard" if workout["hr"] >= z["hard_bpm"] else "easy"] += workout["dur"]
+            hard_line = bike_hard if bucket == "cycle" else z["hard_bpm"]
+            days[day]["hard" if workout["hr"] >= hard_line else "easy"] += workout["dur"]
+        if bucket == "cycle" and workout["hr"] and workout["hr"] < bike_hard:
+            days[day]["ride"] += workout["dur"]
+            months[mk]["cycle_easy_h"] += workout["dur"] / 60
         if bucket == "run":
             days[day]["run"] += workout["dur"]
             if workout["dist"]:
@@ -758,7 +763,7 @@ def build_payload(zpath, cfg=None):
         "runs": runs,
         "runWalks": run_walks,
         "allRuns": all_runs,
-        "days": [{"d": d, "easy": rnd(v["easy"], 1), "hard": rnd(v["hard"], 1), "run": rnd(v["run"], 1)} for d, v in sorted(days.items())],
+        "days": [{"d": d, "easy": rnd(v["easy"], 1), "hard": rnd(v["hard"], 1), "run": rnd(v["run"], 1), "ride": rnd(v["ride"], 1)} for d, v in sorted(days.items())],
         "months": month_rows,
         "mmp": mmp,
         "rhr": daily_series("rhr", 1),

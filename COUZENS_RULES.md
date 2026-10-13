@@ -62,12 +62,27 @@ that stay inside ±5% decoupling (C2). It is a candidate, not a lab value. The e
 **C7 Volume and intensity are two loads (Couzens).** One total (TSS) hides a long easy week
 and a short hard week. Track easy time and hard time separately.
 Source: [Volume v Intensity Responders](https://www.alancouzens.com/blog/vol_int_responder.html).
-**Adapted:** a workout with mean heart rate ≥ `zones.hard_bpm` is hard time. The weighted
-"stress" line multiplies hard minutes by `zones.hard_weight`. It is not TSS.
+**Adapted:** a workout with mean heart rate ≥ `zones.hard_bpm` is hard time. A ride uses
+a line `couzens.bike_hr_offset` bpm lower, because cycling heart rate at the same
+lactate steady state sits about 10 bpm under running. The weighted "stress" line
+multiplies hard minutes by `zones.hard_weight`. It is not TSS. Ride minutes stay at
+full length on this line. The two-thirds weight belongs to the fitness dose (C8), not
+to stress.
 
 **C8 Monthly volume drives aerobic fitness (Couzens).** In his 22,000 files, plain monthly
 hours predicted fitness better than intensity. Volume is the base dose.
 Source: [Volume vs Intensity](https://www.alancouzens.com/blog/volume-vs-intensity.php).
+**Adapted, rides.** A cycling workout with a mean heart rate under the ride hard line
+(C7) counts in this dose. Its hours enter at `couzens.bike_run_weight` (0.67, his
+two-thirds: three bike hours count as about two run hours for run fitness). A ride
+at or above that hard line is hard time, not part of this dose. A ride with no heart
+rate stays out. The monthly chart still shows clock time for every ride. Run
+kilometres stay run kilometres. These rides store heart rate and no distance, speed,
+or power, so they do not enter pace, decoupling, or efficiency factor.
+Sources: [Specificity](https://alancouzens.com/blog/specificity.html);
+Fontana, Boutellier, and Knöpfli-Lenzin, Eur J Appl Physiol 2009 (165 bpm cycling
+versus 175 bpm running at lactate steady state).
+Config: `couzens.bike_run_weight`, `couzens.bike_hr_offset`.
 
 **C9 Shape of a base week (Couzens).** A bulk of easy-steady aerobic work. One longer
 session each week, about 1.5× the average session. An up-tempo effort of 5–8% of the week.
@@ -95,8 +110,10 @@ Source: same post. Config: `couzens.vo2_two_speed_days_below`.
 maximum. Larger cuts lose the slow peripheral adaptations.
 Source: same post. Config: `couzens.speed_volume_floor`, `couzens.speed_volume_ceiling`,
 `couzens.peak_lookback_weeks`.
-**Adapted:** the maximum is the highest 4-week mean of weekly run hours in the
-`peak_lookback_weeks` before the plan starts.
+**Adapted:** the maximum is the highest 4-week mean of weekly aerobic hours in the
+`peak_lookback_weeks` before the plan starts. Aerobic hours are run hours plus the
+weighted ride hours from C8. The current week uses the same total. The long run and
+the speed days stay runs.
 
 **C14 Sharpening goes near the event (Couzens).** VO2max work has most effect 2–10 weeks
 before the target event and fades quickly afterwards.
@@ -170,9 +187,10 @@ Specific work for the next 5K waits until the 60 days are done. Athletes who ski
 off-season, or who keep specific work inside it, were the ones whose next season did
 not improve.
 **Adapted:** in-season volume is the mean run hours of the full weeks in this plan.
-If that block has no full week yet, it is the recent 4-week peak (C13), then the
-last full weeks. The hours are run hours, because specific run work is what this block
-drops. Easy walks can sit in the week as general movement.
+If that block has no full week yet, it is the highest 4-week mean of weekly run hours
+in the same lookback as C13, then the last full weeks. The hours are run hours,
+because specific run work is what this block drops. Easy walks and easy rides can sit
+in the week as general movement. Ride hours are not part of this cap.
 Sources: [The Off-Season, updated 2017](https://alancouzens.com/blog/off_season.html),
 [Recovery/Timing, 2009](http://alancouzens.blogspot.com/2009/02/recoverytiming.html),
 [Kona Qualifiers Basic Year](https://www.alancouzens.com/blog/kona_year.html).

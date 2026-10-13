@@ -271,15 +271,19 @@ def weeks_table(p, cfg, bands, as_of):
         runs = data.get("runs", [])
         steady_runs = [x for x in runs if continuous(x)]
         durs = [x["dur"] for x in alls if x["dur"]]
+        days = data.get("days", [])
+        ride_h = sum((x.get("ride") or 0) for x in days) / 60
+        run_h = sum(durs) / 60
         longest = max(steady_runs, key=lambda x: x["dur"], default=None)
         long_dec = longest["decP"] if longest and longest["dur"] >= c["long_run_min"] else None
         easy_runs = [x for x in runs if x["dur"] >= f["min_steady_min"] and x.get("hr") is not None and pace_lo <= x["hr"] <= pace_hi]
-        days = data.get("days", [])
         row = {
             "week": week.isoformat(),
             "partial": week == last and as_of.weekday() < 6,
             "runs": len(alls),
-            "runH": r(sum(durs) / 60, 2),
+            "runH": r(run_h, 2),
+            "rideH": r(ride_h, 2),
+            "aeroH": r(run_h + c["bike_run_weight"] * ride_h, 2),
             "easyH": r(sum(x["easy"] for x in days) / 60, 2),
             "hardH": r(sum(x["hard"] for x in days) / 60, 2),
             "longMin": r(max(durs, default=0), 0),
@@ -356,11 +360,11 @@ def fatigue_curve(mmp):
     }
 
 
-def peak_volume(weeks, cfg):
+def peak_volume(weeks, cfg, key="runH"):
     c = cfg["couzens"]
     plan_start = date.fromisoformat(cfg["plan"]["start"])
     lo = plan_start - timedelta(weeks=c["peak_lookback_weeks"])
-    hours = [(date.fromisoformat(w["week"]), w["runH"] or 0) for w in weeks]
+    hours = [(date.fromisoformat(w["week"]), w.get(key) or 0) for w in weeks]
     best = None
     for i in range(3, len(hours)):
         d = hours[i][0]
@@ -380,16 +384,27 @@ def base_checks(p, cfg, weeks, rec_before, rec_after, as_of):
 
     current_month = as_of.strftime("%Y-%m")
     months = [m for m in p["months"] if m["m"] != current_month]
-    before = [m["run_h"] for m in months if m["m"] < split[:7]][-6:]
-    after = [m["run_h"] for m in months if m["m"] >= split[:7]]
+    weight = c["bike_run_weight"]
+    bike_hard = z["hard_bpm"] - c["bike_hr_offset"]
+
+    def aero_month(m):
+        return m["run_h"] + weight * (m.get("cycle_easy_h") or 0)
+
+    before = [aero_month(m) for m in months if m["m"] < split[:7]][-6:]
+    after = [aero_month(m) for m in months if m["m"] >= split[:7]]
     mb, ma = med(before), med(after)
     if mb is None or ma is None:
         out.append(check("C8", "More monthly volume", "na", "Not enough full months on both sides of the split."))
     else:
         change = (ma / mb - 1) * 100 if mb else 100
         res = "pass" if change >= 10 else "partial" if change > -10 else "fail"
+        run_after = med([m["run_h"] for m in months if m["m"] >= split[:7]])
+        ride_after = med([(m.get("cycle_easy_h") or 0) for m in months if m["m"] >= split[:7]])
         out.append(check("C8", "More monthly volume", res,
-                         f"Median run time is {ma:.1f} h a month from {split[:7]}, against {mb:.1f} h in the 6 months before ({change:+.0f}%). Duplicate and copied workouts are removed (M1)."))
+                         f"Median aerobic time is {ma:.1f} h a month from {split[:7]}, against {mb:.1f} h in the 6 months before ({change:+.0f}%). "
+                         f"Aerobic time is run hours plus {weight:.2f} of ride hours under {bike_hard:.0f} bpm. "
+                         f"In the months from {split[:7]}, median run time is {run_after:.1f} h and median qualifying ride time is {ride_after:.1f} h. "
+                         f"Duplicate and copied workouts are removed (M1)."))
 
     full = [w for w in weeks if not w["partial"]][-8:]
     easy = sum(w["easyH"] or 0 for w in full)
@@ -398,7 +413,9 @@ def base_checks(p, cfg, weeks, rec_before, rec_after, as_of):
         share = easy / (easy + hard)
         res = "pass" if share >= c["easy_share_min"] else "partial" if share >= c["easy_share_min"] - 0.1 else "fail"
         out.append(check("C6", "Most work is easy", res,
-                         f"{share * 100:.0f}% of workout time in the last {len(full)} full weeks has a mean heart rate under {z['hard_bpm']} bpm. The target is {c['easy_share_min'] * 100:.0f}% or more (C9)."))
+                         f"{share * 100:.0f}% of workout time in the last {len(full)} full weeks is easy. "
+                         f"A run is easy under {z['hard_bpm']} bpm. A ride is easy under {bike_hard:.0f} bpm. "
+                         f"The target is {c['easy_share_min'] * 100:.0f}% or more (C9)."))
     else:
         out.append(check("C6", "Most work is easy", "na", "No workouts with heart rate in the last 8 weeks."))
 
@@ -495,16 +512,22 @@ def plan_checks(p, cfg, journal, weeks, bands, as_of, peak):
                         f"{inside:.1f} of {fast:.1f} fast minutes are at {mmss(speed['lo'])}–{mmss(speed['hi'])} /km ({share * 100:.0f}%). Faster work is goal-pace practice."))
     if peak:
         floor = peak[1] * c["speed_volume_floor"]
-        hours = week["runH"] or 0
+        hours = week.get("aeroH")
+        if hours is None:
+            hours = week.get("runH") or 0
+        run_h = week.get("runH") or 0
+        ride_h = week.get("rideH") or 0
+        weight = c["bike_run_weight"]
+        detail = f"{hours:.1f} aerobic hours ({run_h:.1f} run, {ride_h:.1f} ride at {weight:.2f})"
         pace = hours * 7 / elapsed
         if hours >= floor:
-            res, text = "pass", f"{hours:.1f} h this week. The floor is {floor:.1f} h."
+            res, text = "pass", f"{detail}. The floor is {floor:.1f} h."
         elif week["partial"] and pace >= floor:
-            res, text = "partial", f"{hours:.1f} h after {elapsed} days, on pace for {pace:.1f} h. The floor is {floor:.1f} h."
+            res, text = "partial", f"{detail} after {elapsed} days, on pace for {pace:.1f} h. The floor is {floor:.1f} h."
         else:
-            res, text = "fail", f"{hours:.1f} h after {elapsed} days. The floor is {floor:.1f} h."
+            res, text = "fail", f"{detail} after {elapsed} days. The floor is {floor:.1f} h."
         cz.append(check("C13", "Volume stays near the peak", res,
-                        text + f" Peak is {peak[1]:.1f} h a week, the 4 weeks from {peak[0]}; floor is {c['speed_volume_floor'] * 100:.0f}%."))
+                        text + f" Peak is {peak[1]:.1f} aerobic hours a week, the 4 weeks from {peak[0]}; floor is {c['speed_volume_floor'] * 100:.0f}%."))
     long_dec = week.get("longDec")
     if long_dec is None:
         cz.append(check("C2", "Long run stays durable", "na", f"No steady run of {c['long_run_min']} min or more with a decoupling value this week."))
@@ -654,7 +677,7 @@ def actions(cfg, base, plan, ready, rec, weeks, bands, off):
     if plan:
         for x in plan["couzens"]:
             if x["rule"] == "C13" and x["result"] != "pass":
-                out.append({"rule": "C13", "text": "Bring the week up to the volume floor with easy running. " + x["evidence"]})
+                out.append({"rule": "C13", "text": "Bring the week up to the volume floor with easy running or an easy ride. " + x["evidence"]})
             if x["rule"] == "C11" and x["result"] != "pass":
                 speed = next(b for b in bands if b["key"] == "speed")
                 out.append({"rule": "C11", "text": f"Put the bulk of the next speed day at {mmss(speed['lo'])}–{mmss(speed['hi'])} per km, your 3K–10K pace now. Aim for {cfg['plan']['bridge_target_min']} minutes there before any goal-pace reps."})
@@ -666,7 +689,7 @@ def actions(cfg, base, plan, ready, rec, weeks, bands, off):
         out.append({"rule": "C2", "text": f"The last two long steady runs decoupled {full[0]['longDec']:.1f}% and {full[1]['longDec']:.1f}%. Drop one speed day this week and recover (C18)."})
     for x in base:
         if x["rule"] == "C8" and x["result"] == "fail":
-            out.append({"rule": "C8", "text": "Monthly run time is down. Volume is the base dose; add easy time before more intensity."})
+            out.append({"rule": "C8", "text": "Monthly aerobic time is down. Volume is the base dose; add easy time before more intensity."})
         if x["rule"] == "C6" and x["result"] != "pass":
             out.append({"rule": "C6", "text": "Too much of the week is hard. Move sessions back under the hard line until most time is easy."})
     if rec["under"] is not None and rec["under"] >= 30:
@@ -683,14 +706,15 @@ def evaluate(p, cfg, journal):
     rows, five, before, after = records(p, cfg, journal)
     bands = derived_bands(cfg, five)
     weeks = weeks_table(p, cfg, bands, as_of)
-    peak = peak_volume(weeks, cfg)
+    run_peak = peak_volume(weeks, cfg, "runH")
+    aero_peak = peak_volume(weeks, cfg, "aeroH")
     entry_days = [e["date"] for e in journal.get("entries", []) if e.get("date")]
     day = max([as_of] + [date.fromisoformat(d) for d in entry_days if d <= (as_of + timedelta(days=1)).isoformat()])
     ready = readiness(p, cfg, journal, day)
     base = base_checks(p, cfg, weeks, before, after, as_of)
-    plan = plan_checks(p, cfg, journal, weeks, bands, as_of, peak)
+    plan = plan_checks(p, cfg, journal, weeks, bands, as_of, aero_peak)
     rec = recovery_eval(p, cfg)
-    off = off_season(cfg, weeks, as_of, peak)
+    off = off_season(cfg, weeks, as_of, run_peak)
     new_runs = []
     prev = (p.get("sync") or {}).get("previousLocal")
     if prev:
@@ -700,7 +724,7 @@ def evaluate(p, cfg, journal):
         "fiveK": {"paceS": r(five["paceS"], 1), "date": five["date"]} if five else None,
         "bands": [{**b, "lo": r(b["lo"], 1), "hi": r(b["hi"], 1)} for b in bands],
         "weeks": weeks,
-        "peak": {"from": peak[0], "hours": r(peak[1], 2)} if peak else None,
+        "peak": {"from": aero_peak[0], "hours": r(aero_peak[1], 2)} if aero_peak else None,
         "readiness": ready,
         "base": base,
         "baseScore": sum(x["score"] for x in base),

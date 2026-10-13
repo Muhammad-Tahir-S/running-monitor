@@ -286,6 +286,79 @@ class FatigueTest(unittest.TestCase):
         ]))
 
 
+class RideAerobicTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        zpath = Path(cls.tmp.name) / "export.zip"
+        start = datetime(2026, 9, 29, 7, 0, 0)
+        lines = ['<?xml version="1.0" encoding="UTF-8"?>', "<HealthData>"]
+
+        def ride(at, minutes, hr):
+            end = at + timedelta(minutes=minutes)
+            lines.append(
+                f'<Workout workoutActivityType="HKWorkoutActivityTypeCycling" duration="{minutes}" durationUnit="min" {WATCH} '
+                f'startDate="{stamp(at)}" endDate="{stamp(end)}">'
+            )
+            lines.append('<MetadataEntry key="HKIndoorWorkout" value="1"/>')
+            if hr is not None:
+                lines.append(stat("HeartRate", at, end, average=hr, unit="count/min"))
+            lines.append("</Workout>")
+
+        ride(start, 60, "104")
+        ride(start + timedelta(hours=3), 30, "145")
+        ride(start + timedelta(hours=5), 20, None)
+        run_at = start + timedelta(hours=8)
+        run_end = run_at + timedelta(minutes=40)
+        lines.append(
+            f'<Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="40" durationUnit="min" {WATCH} '
+            f'startDate="{stamp(run_at)}" endDate="{stamp(run_end)}">'
+        )
+        lines.append(stat("HeartRate", run_at, run_end, average="130", unit="count/min"))
+        lines.append(stat("DistanceWalkingRunning", run_at, run_end, sum="4", unit="km"))
+        lines.append("</Workout>")
+        lines.append("</HealthData>")
+        with zipfile.ZipFile(zpath, "w") as z:
+            z.writestr(hp.XML, "\n".join(lines) + "\n")
+        cfg = hp.load_config()
+        cfg["weeks_from"] = "2026-09-28"
+        cls.cfg = cfg
+        cls.payload = hp.build_payload(zpath, cfg)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_easy_ride_counts_and_hard_or_blank_rides_stay_out(self):
+        month = next(m for m in self.payload["months"] if m["m"] == "2026-09")
+        self.assertAlmostEqual(month["cycle_h"], 110 / 60, places=2)
+        self.assertAlmostEqual(month["cycle_easy_h"], 1.0, places=2)
+        day = next(d for d in self.payload["days"] if d["d"] == "2026-09-29")
+        self.assertAlmostEqual(day["ride"], 60, places=1)
+        self.assertAlmostEqual(day["easy"], 100, places=1)
+        self.assertAlmostEqual(day["hard"], 30, places=1)
+
+    def test_week_aerobic_hours_weight_the_easy_ride(self):
+        rows = couzens.weeks_table(self.payload, self.cfg, [], datetime(2026, 10, 4).date())
+        week = next(row for row in rows if row["week"] == "2026-09-28")
+        self.assertAlmostEqual(week["runH"], 40 / 60, places=2)
+        self.assertAlmostEqual(week["rideH"], 1.0, places=2)
+        self.assertAlmostEqual(week["aeroH"], 40 / 60 + 0.67 * 1.0, places=2)
+
+    def test_monthly_check_names_run_and_ride(self):
+        months = [{"m": f"2025-{m:02d}", "run_h": 10, "cycle_easy_h": 0} for m in range(7, 13)]
+        months += [{"m": f"2026-{m:02d}", "run_h": 10, "cycle_easy_h": 0 if m < 4 else 6} for m in range(1, 10)]
+        out = couzens.base_checks(
+            {"months": months, "runs": []}, self.cfg, [], None, None, datetime(2026, 10, 12).date()
+        )
+        c8 = next(x for x in out if x["rule"] == "C8")
+        self.assertEqual(c8["result"], "pass")
+        self.assertIn("14.0 h", c8["evidence"])
+        self.assertIn("10.0 h", c8["evidence"])
+        self.assertIn("0.67", c8["evidence"])
+        self.assertIn("6.0 h", c8["evidence"])
+
+
 class OffSeasonTest(unittest.TestCase):
     def weeks(self):
         start = datetime(2026, 9, 28).date()

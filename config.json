@@ -53,6 +53,8 @@
     "long_run_min": 40,
     "easy_pace_hr": [110, 145],
     "easy_share_min": 0.8,
+    "bike_run_weight": 0.67,
+    "bike_hr_offset": 10,
     "vo2_two_speed_days_below": 40,
     "speed_volume_floor": 0.66,
     "speed_volume_ceiling": 0.80,
