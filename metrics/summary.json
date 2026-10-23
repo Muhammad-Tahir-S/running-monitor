@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-10-16 09:00",
+  "asOf": "2026-10-23 16:00",
   "baseScore": 3.5,
   "checks": {
     "C11 Faster hard mark after the base": "fail",
@@ -16,12 +16,12 @@
     "P1 One longer run": "pass",
     "P1 Two speed days": "pass",
     "P2 Minutes at today's 5K pace": "partial",
-    "P3 Goal pace stays a short set": "pass"
+    "P3 Goal pace stays a short set": "partial"
   },
   "couzensScore": 2.5,
-  "nikeScore": 4.0,
-  "planWeek": 3,
-  "readiness": "rest",
+  "nikeScore": 3.5,
+  "planWeek": 4,
+  "readiness": "recovery",
   "records": {
     "1 km": "4:46",
     "1 mile": "8:44",
@@ -29,28 +29,28 @@
     "5 km": "29:49"
   },
   "week": {
-    "aeroH": 2.68,
-    "bridge": 2.0,
+    "aeroH": 2.52,
+    "bridge": 0.5,
     "easyEf": 0.849,
-    "easyH": 4.1,
-    "easyPace": 11.35,
-    "fast": 8.7,
-    "fivek": 2.0,
-    "goal": 1.5,
-    "hardH": 0.83,
-    "hrv": 46.4,
+    "easyH": 3.65,
+    "easyPace": 11.07,
+    "fast": 15.2,
+    "fivek": 3.7,
+    "goal": 1.7,
+    "hardH": 0.0,
+    "hrv": 46.6,
     "longDec": null,
-    "longMin": 59.0,
-    "longRatio": 2.45,
-    "mile": 1.0,
+    "longMin": 42.0,
+    "longRatio": 2.34,
+    "mile": 4.0,
     "partial": true,
-    "rhr": 70.0,
-    "rideH": 1.0,
-    "runH": 2.01,
-    "runs": 5,
-    "sleep": 5.1,
-    "speed": 2.7,
+    "rhr": 66.0,
+    "rideH": 1.07,
+    "runH": 1.8,
+    "runs": 6,
+    "sleep": 4.69,
+    "speed": 4.2,
     "speedDays": 2,
-    "week": "2026-10-12"
+    "week": "2026-10-19"
   }
 }
