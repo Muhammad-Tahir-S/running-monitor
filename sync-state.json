@@ -1,9 +1,9 @@
 {
   "zip": "export.zip",
-  "latestEnd": "2026-11-06T21:00:00Z",
-  "latestLocal": "2026-11-06 22:00:00 +0100",
-  "previousLocal": "2026-11-03 19:19:07 +0100",
+  "latestEnd": "2026-11-09T06:00:00Z",
+  "latestLocal": "2026-11-09 07:00:00 +0100",
+  "previousLocal": "2026-11-06 22:00:00 +0100",
   "buildKey": "477cc45593f76669",
-  "buildId": "80af256e7641",
-  "syncedAt": "2026-11-07T06:59:20"
+  "buildId": "c359d802f54b",
+  "syncedAt": "2026-11-09T06:51:24"
 }
