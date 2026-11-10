@@ -177,7 +177,13 @@ def sync(force=False):
         STATUS["message"] = "Building the report."
         previous = state.get("previousLocal") if same_data else state.get("latestLocal")
         payload = health_payload.build_payload(path, cfg)
-        payload["sync"] = {"zip": path.name, "latestEnd": latest_utc, "latestLocal": latest_local, "previousLocal": previous}
+        payload["sync"] = {
+            "zip": path.name,
+            "latestEnd": latest_utc,
+            "latestLocal": latest_local,
+            "previousLocal": previous,
+            "previousRecords": state.get("records") if not same_data else None,
+        }
         payload = publish(cfg, payload)
         write_atomic(state_path, json.dumps({
             "zip": path.name,
@@ -187,6 +193,7 @@ def sync(force=False):
             "buildKey": key,
             "buildId": payload["buildId"],
             "syncedAt": datetime.now().isoformat(timespec="seconds"),
+            "records": couzens.records_snapshot(payload["eval"]["records"]),
         }, indent=2) + "\n")
         commit(cfg, "Data through " + latest_local[:16])
         fresh = len(payload["eval"]["newRuns"])

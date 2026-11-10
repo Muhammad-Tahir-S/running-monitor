@@ -30,7 +30,10 @@
     "steady_cv": 0.25,
     "half_match": 0.15,
     "min_half_samples": 4,
-    "exclude_indoor_records": true
+    "exclude_indoor_records": true,
+    "effort_max_gap_s": 5,
+    "effort_sustained_from_m": 200,
+    "effort_sustained_min_kmh": 8
   },
   "zones": {
     "easy_hr": [130, 145],
@@ -87,6 +90,13 @@
     { "key": "mile", "name": "Faster than 4:21", "from": "2:00", "to": "4:21" }
   ],
   "records": [
+    { "name": "Peak speed", "mode": "speed" },
+    { "name": "40 m", "mode": "effort", "m": 40 },
+    { "name": "50 m", "mode": "effort", "m": 50 },
+    { "name": "100 m", "mode": "effort", "m": 100 },
+    { "name": "200 m", "mode": "effort", "m": 200 },
+    { "name": "400 m", "mode": "effort", "m": 400 },
+    { "name": "800 m", "mode": "effort", "m": 800 },
     { "name": "1 km", "km": 1 },
     { "name": "1 mile", "km": 1.609344 },
     { "name": "5 km", "km": 5 },

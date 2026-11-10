@@ -122,8 +122,36 @@ def minutes_in(run, lo, hi):
     return sum(m for sec, m in run.get("paceHist") or [] if lo <= sec < hi)
 
 
+def records_snapshot(rows):
+    snap = {}
+    for row in rows:
+        if row.get("speedKmh") is not None:
+            snap[row["name"]] = {"speedKmh": row["speedKmh"], "date": row.get("date")}
+        elif row.get("seconds") is not None:
+            snap[row["name"]] = {"seconds": row["seconds"], "date": row.get("date")}
+    return snap
+
+
+def detect_new_records(rows, previous):
+    if not previous:
+        return []
+    out = []
+    for row in rows:
+        prev = previous.get(row["name"])
+        if prev is None:
+            continue
+        if row.get("speedKmh") is not None:
+            if row["speedKmh"] > prev.get("speedKmh", 0) + 1e-6:
+                out.append({**row, "was": prev.get("speedKmh"), "kind": "speed"})
+        elif row.get("seconds") is not None and prev.get("seconds") is not None:
+            if row["seconds"] < prev["seconds"] - 1e-6:
+                out.append({**row, "was": prev["seconds"], "kind": "time"})
+    return out
+
+
 def records(p, cfg, journal):
     exclude_indoor = cfg["filters"].get("exclude_indoor_records", True)
+    efforts = p.get("efforts") or {}
 
     def best_for(km, runs, races):
         best = None
@@ -148,17 +176,42 @@ def records(p, cfg, journal):
     races = journal.get("races", [])
     rows = []
     for target in cfg["records"]:
+        mode = target.get("mode") or ("effort" if target.get("m") else "workout")
+        if mode == "speed":
+            hit = efforts.get("maxSpeed")
+            if hit:
+                rows.append({"name": target["name"], "km": None, "time": f"{hit['spd']:.1f} km/h",
+                             "seconds": None, "speedKmh": hit["spd"], "pace": mmss(60 / hit["spd"]),
+                             "date": hit["date"], "source": "Watch sample", "detail": hit["detail"], "mode": mode})
+            else:
+                rows.append({"name": target["name"], "km": None, "time": None, "seconds": None, "speedKmh": None,
+                             "pace": None, "date": None, "source": None, "detail": "No speed samples", "mode": mode})
+            continue
+        if mode == "effort":
+            meters = target["m"]
+            km = meters / 1000.0
+            hit = (efforts.get("distances") or {}).get(meters)
+            if hit:
+                rows.append({"name": target["name"], "km": km, "time": hms(hit["seconds"]),
+                             "seconds": hit["seconds"], "pace": mmss(hit["paceS"]),
+                             "date": hit["date"], "source": "Watch sample", "detail": hit["detail"], "mode": mode})
+            else:
+                rows.append({"name": target["name"], "km": km, "time": None, "seconds": None,
+                             "pace": None, "date": None, "source": None,
+                             "detail": "No continuous segment this long", "mode": mode})
+            continue
         best = best_for(target["km"], p["allRuns"], races)
         if best:
             rows.append({"name": target["name"], "km": target["km"], "time": hms(best["paceS"] * target["km"]),
                          "seconds": round(best["paceS"] * target["km"]), "pace": mmss(best["paceS"]),
-                         "date": best["date"], "source": best["source"], "detail": best["detail"]})
+                         "date": best["date"], "source": best["source"], "detail": best["detail"], "mode": mode})
         else:
             rows.append({"name": target["name"], "km": target["km"], "time": None, "seconds": None,
-                         "pace": None, "date": None, "source": None, "detail": "No run covers this distance"})
+                         "pace": None, "date": None, "source": None, "detail": "No run covers this distance", "mode": mode})
     five = best_for(5, p["allRuns"], races)
     for row in rows:
-        row["riegel"] = hms(five["paceS"] * 5 * (row["km"] / 5) ** 1.06) if five else None
+        km = row.get("km")
+        row["riegel"] = hms(five["paceS"] * 5 * (km / 5) ** 1.06) if five and km else None
     split = cfg["eras"]["split"]
     before = best_for(5, [x for x in p["allRuns"] if x["date"] < split], [x for x in races if x["date"] < split])
     after = best_for(5, [x for x in p["allRuns"] if x["date"] >= split], [x for x in races if x["date"] >= split])
@@ -716,11 +769,16 @@ def evaluate(p, cfg, journal):
     rec = recovery_eval(p, cfg)
     off = off_season(cfg, weeks, as_of, run_peak)
     new_runs = []
-    prev = (p.get("sync") or {}).get("previousLocal")
+    sync = p.get("sync") or {}
+    prev = sync.get("previousLocal")
     if prev:
         new_runs = [x["id"] for x in p["runs"] if f"{x['date']} {x['start']}" > prev[:16]]
+    new_records = []
+    if prev and sync.get("previousRecords"):
+        new_records = detect_new_records(rows, sync["previousRecords"])
     return {
         "records": rows,
+        "newRecords": new_records,
         "fiveK": {"paceS": r(five["paceS"], 1), "date": five["date"]} if five else None,
         "bands": [{**b, "lo": r(b["lo"], 1), "hi": r(b["hi"], 1)} for b in bands],
         "weeks": weeks,

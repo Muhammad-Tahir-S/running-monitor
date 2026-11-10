@@ -198,6 +198,15 @@
   .journal .form-row { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .scroll.short { max-height: 260px; }
   button.link { background: none; border: 0; color: var(--hr); cursor: pointer; font: inherit; font-size: 12px; padding: 0; }
+  .record-banner {
+    background: #e1eee6;
+    border-bottom: 1px solid #b8d4c4;
+    padding: 10px 28px;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .record-banner a { color: var(--pace); font-weight: 600; }
+  .record-banner[hidden] { display: none; }
   @media (max-width: 600px) {
     .stat { min-width: 0; flex: 1 1 42%; }
     .journal { grid-template-columns: 1fr 1fr; }
@@ -251,6 +260,7 @@
   </nav>
 </aside>
 <div class="page">
+<div class="record-banner" id="recordBanner" hidden role="status" aria-live="polite"></div>
 <header>
   <h1>Heart rate against power and pace</h1>
   <p class="sub" id="lede">Apple Watch runs with heart rate, power, and pace.</p>
@@ -364,7 +374,8 @@
   </div>
 
   <h2 id="records">Best times</h2>
-  <p class="note">A recorded best is the fastest average pace over a whole workout that covers the distance, up to twice as long. The time is that pace times the distance. A run that covers the distance at that average pace holds a stretch at least that fast. Indoor runs are out. Races from the journal count too. Outdoor GPS distance can be wrong by about 4 to 6 percent.</p>
+  <p class="note">Peak speed and marks up to 800 m come from Apple Watch speed samples while you move at <span data-cfg="filters.move_kmh"></span> km/h or more. Distance uses the mean of each pair of samples; gaps over <span data-cfg="filters.effort_max_gap_s"></span> s break the window. From <span data-cfg="filters.effort_sustained_from_m"></span> m up, every sample in the window must stay at or above <span data-cfg="filters.effort_sustained_min_kmh"></span> km/h so jog-and-surge chains do not count. From 1 km up, a recorded best is the fastest average pace over a whole workout that covers the distance, up to twice as long. Indoor runs are out. Races from the journal count too. Outdoor GPS distance can be wrong by about 4 to 6 percent.</p>
+  <p class="note">Each sync stores these numbers in sync-state.json. When new data in the export beats a saved mark, a banner appears at the top of the page.</p>
   <p class="note">The equivalent column is the best 5 km scaled with the Riegel exponent 1.06. It is a model, not a result.</p>
   <div class="scroll">
     <table>
@@ -2237,6 +2248,32 @@ function renderBase() {
   document.getElementById("baseBody").innerHTML = checkRows(EV.base);
 }
 
+function renderRecordBanner() {
+  const box = document.getElementById("recordBanner");
+  const hits = EV.newRecords || [];
+  if (!hits.length) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  box.hidden = false;
+  const lines = hits.map(r => {
+    if (r.kind === "speed") {
+      return esc(r.name) + ": " + esc(r.time) + " (was " + fmt(r.was, 1) + " km/h) on " + esc(r.date);
+    }
+    const was = r.was >= 3600 ? fmtHms(r.was) : fmtMss(r.was);
+    return esc(r.name) + ": " + esc(r.time) + " (was " + was + ") on " + esc(r.date);
+  });
+  box.innerHTML = "New personal " + (hits.length === 1 ? "record" : "records") + ": " + lines.join("; ")
+    + '. <a href="#records">See best times</a>';
+}
+function fmtHms(sec) {
+  const h = Math.floor(sec / 3600);
+  const rest = Math.floor(sec % 3600);
+  return h ? h + ":" + String(Math.floor(rest / 60)).padStart(2, "0") + ":" + String(rest % 60).padStart(2, "0")
+    : Math.floor(rest / 60) + ":" + String(rest % 60).padStart(2, "0");
+}
+function fmtMss(sec) { return Math.floor(sec / 60) + ":" + String(Math.round(sec % 60)).padStart(2, "0"); }
 function renderRecords() {
   document.getElementById("recordsBody").innerHTML = EV.records.map(r =>
     "<tr><td>" + esc(r.name) + "</td><td>" + esc(r.time || "—") + "</td><td>" + esc(r.pace ? r.pace + " /km" : "—") + "</td><td>" + esc(r.date || "—")
@@ -2389,6 +2426,7 @@ renderPlan();
 renderProgress();
 renderBase();
 renderRecords();
+renderRecordBanner();
 renderTargets();
 renderRecoveryText();
 renderRules();

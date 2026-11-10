@@ -211,8 +211,9 @@ class PipelineTest(unittest.TestCase):
     def test_evaluate_runs_and_names_rules(self):
         e = couzens.evaluate(self.payload, self.cfg, {"entries": [], "races": []})
         self.assertTrue(all(c["rule"] in couzens.RULES for c in e["base"]))
-        self.assertEqual(e["records"][2]["name"], "5 km")
-        self.assertEqual(e["records"][2]["date"], "2026-09-29")
+        five = next(r for r in e["records"] if r["name"] == "5 km")
+        self.assertEqual(five["date"], "2026-09-29")
+        self.assertIsNotNone(self.payload["efforts"]["maxSpeed"])
         self.assertGreaterEqual(e["fatigue"]["power"]["n"], 3)
         self.assertIn("C19", couzens.RULES)
         self.assertIn("C20", couzens.RULES)
@@ -265,6 +266,35 @@ class EasyPaceTest(unittest.TestCase):
         self.assertEqual(week["easyPace"], 10.75)
         self.assertEqual(week["easyEf"], 0.85)
         self.assertIsNone(week["longDec"])
+
+
+class EffortComputeTest(unittest.TestCase):
+    def test_40m_uses_moving_time_and_partial_segment(self):
+        spd = 15.0
+        segs = [(2.0, spd * 2 / 3600.0, spd) for _ in range(30)]
+        out = hp.compute_efforts([{"date": "2026-11-10", "peaks": [spd], "segments": segs}], [40])
+        hit = out["distances"][40]
+        self.assertIsNotNone(hit)
+        self.assertAlmostEqual(hit["seconds"], 9.6, delta=0.15)
+
+    def test_gap_splits_segments(self):
+        spd = 12.0
+        segs = [(1.0, spd / 3600.0, spd), (1.0, spd / 3600.0, spd)]
+        out = hp.compute_efforts([{"date": "2026-11-10", "peaks": [spd], "segments": segs}], [40])
+        self.assertIsNone(out["distances"][40])
+
+
+class RecordAlertTest(unittest.TestCase):
+    def test_detect_new_time_and_speed_records(self):
+        rows = [
+            {"name": "5 km", "seconds": 1400, "speedKmh": None},
+            {"name": "Peak speed", "seconds": None, "speedKmh": 17.0, "time": "17.0 km/h", "date": "2026-10-01"},
+        ]
+        prev = {"5 km": {"seconds": 1500}, "Peak speed": {"speedKmh": 16.0}}
+        hits = couzens.detect_new_records(rows, prev)
+        self.assertEqual(len(hits), 2)
+        self.assertEqual(hits[0]["kind"], "time")
+        self.assertEqual(hits[1]["kind"], "speed")
 
 
 class FatigueTest(unittest.TestCase):

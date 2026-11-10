@@ -355,6 +355,68 @@ def near_moving(speed_times, t, window=25):
     return any(0 <= j < len(speed_times) and abs(speed_times[j] - t) <= window for j in (index - 1, index))
 
 
+def moving_speed_segments(speed_series, t0, t1, move, plausible, max_gap_s=5):
+    """Distance-covered segments between consecutive speed samples while moving (M4)."""
+    series = slice_series(speed_series, t0, t1)
+    segs = []
+    for i in range(len(series) - 1):
+        t, v = series[i]
+        v2 = series[i + 1][1]
+        dt = series[i + 1][0] - t
+        if dt <= 0 or dt > max_gap_s:
+            continue
+        v_mid = (v + v2) / 2
+        if not plausible("spd", v) or not plausible("spd", v2) or v_mid < move:
+            continue
+        segs.append((dt, v_mid * dt / 3600.0, v_mid))
+    return segs
+
+
+def compute_efforts(effort_runs, distances_m, sustained_from_m=200, sustained_min_kmh=8):
+    """Short efforts from raw speed samples; time is moving time only, with partial final segment."""
+    best_speed = None
+    by_m = {m: None for m in distances_m}
+    for item in effort_runs:
+        day = item["date"]
+        for v in item["peaks"]:
+            if best_speed is None or v > best_speed["spd"]:
+                best_speed = {"spd": rnd(v, 2), "date": day, "detail": f"{v:.1f} km/h at one sample"}
+        segs = item["segments"]
+        if not segs:
+            continue
+        for meters in distances_m:
+            target_km = meters / 1000.0
+            n = len(segs)
+            need_floor = meters >= sustained_from_m and sustained_min_kmh
+            for j in range(n):
+                dist = elapsed = 0.0
+                min_spd = None
+                for k in range(j, n):
+                    dt, dk, spd = segs[k]
+                    min_spd = spd if min_spd is None else min(min_spd, spd)
+                    dist += dk
+                    elapsed += dt
+                    if dist < target_km:
+                        continue
+                    if need_floor and min_spd is not None and min_spd < sustained_min_kmh:
+                        break
+                    excess = dist - target_km
+                    if spd > 0:
+                        elapsed -= excess / (spd / 3600.0)
+                    prev = by_m[meters]
+                    if prev is None or elapsed < prev["seconds"]:
+                        by_m[meters] = {
+                            "seconds": rnd(elapsed, 3),
+                            "paceS": rnd(elapsed / target_km, 2),
+                            "date": day,
+                            "detail": f"{meters} m while every sample in the window is at least {sustained_min_kmh:.0f} km/h"
+                            if need_floor
+                            else f"{meters} m in a continuous moving segment",
+                        }
+                    break
+    return {"maxSpeed": best_speed, "distances": {m: by_m[m] for m in distances_m}}
+
+
 def raw_decoupling(samples, t0, t1, f, plausible):
     """Rules C1–C3: half split on moving samples for power, speed, and heart rate."""
     move = f["move_kmh"]
@@ -661,18 +723,51 @@ def build_payload(zpath, cfg=None):
 
     run_walks.sort(key=lambda s: (s["date"], s["start"]))
 
-    watch_runs = [w for w in workouts if w["act"] == "Running" and w["watch"] and not w.get("run_walk")]
+    exclude_indoor = f.get("exclude_indoor_records", True)
+    watch_runs = [
+        w for w in workouts
+        if w["act"] == "Running" and w["watch"] and not w.get("run_walk")
+        and not (exclude_indoor and w.get("indoor"))
+    ]
     binned_runs = []
+    effort_runs = []
     for workout in watch_runs:
         samples = {key: slice_series(streams[key], workout["t0"], workout["t1"]) for key in STREAMS}
         rows = [r for r in binned(samples, workout["t0"], workout["t1"], bin_s, plausible) if r["spd"] and r["spd"] >= move and r["pwr"]]
-        binned_runs.append((workout["t1"] - workout["t0"], rows))
+        binned_runs.append({
+            "span": workout["t1"] - workout["t0"],
+            "rows": rows,
+            "date": workout["start"].date().isoformat(),
+        })
+        peaks = [v for t, v in samples["spd"] if plausible("spd", v) and v >= move]
+        effort_runs.append({
+            "date": workout["start"].date().isoformat(),
+            "peaks": peaks,
+            "segments": moving_speed_segments(
+                streams["spd"], workout["t0"], workout["t1"], move, plausible,
+                max_gap_s=f.get("effort_max_gap_s", 5),
+            ),
+        })
+
+    effort_ms = [t["m"] for t in cfg.get("records", []) if t.get("mode") == "effort" and t.get("m")]
+    need_efforts = effort_ms or any(t.get("mode") == "speed" for t in cfg.get("records", []))
+    efforts = (
+        compute_efforts(
+            effort_runs,
+            effort_ms,
+            sustained_from_m=f.get("effort_sustained_from_m", 200),
+            sustained_min_kmh=f.get("effort_sustained_min_kmh", 8),
+        )
+        if need_efforts
+        else {"maxSpeed": None, "distances": {}}
+    )
 
     def mmp_for(duration_min):
         best_pwr = best_spd = None
         window = duration_min * 60
         min_bins = max(3, int(window / bin_s * 0.7))
-        for span, rows in binned_runs:
+        for br in binned_runs:
+            span, rows = br["span"], br["rows"]
             if span < window * 0.9 or len(rows) < min_bins:
                 continue
             j = 0
@@ -766,6 +861,7 @@ def build_payload(zpath, cfg=None):
         "days": [{"d": d, "easy": rnd(v["easy"], 1), "hard": rnd(v["hard"], 1), "run": rnd(v["run"], 1), "ride": rnd(v["ride"], 1)} for d, v in sorted(days.items())],
         "months": month_rows,
         "mmp": mmp,
+        "efforts": efforts,
         "rhr": daily_series("rhr", 1),
         "vo2": daily_series("vo2", 2),
         "hrv": daily_series("hrv", 1),
