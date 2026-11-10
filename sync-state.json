@@ -3,7 +3,42 @@
   "latestEnd": "2026-11-10T10:00:00Z",
   "latestLocal": "2026-11-10 11:00:00 +0100",
   "previousLocal": "2026-11-09 07:00:00 +0100",
-  "buildKey": "477cc45593f76669",
-  "buildId": "508bbb7229a6",
-  "syncedAt": "2026-11-10T11:02:30"
+  "buildKey": "97b6456431e56eb3",
+  "buildId": "3ee93d0c4633",
+  "syncedAt": "2026-11-10T11:09:38",
+  "records": {
+    "Peak speed": {
+      "speedKmh": 22.39
+    },
+    "40 m": {
+      "seconds": 14
+    },
+    "50 m": {
+      "seconds": 14
+    },
+    "100 m": {
+      "seconds": 28
+    },
+    "200 m": {
+      "seconds": 44
+    },
+    "400 m": {
+      "seconds": 119
+    },
+    "800 m": {
+      "seconds": 253
+    },
+    "1 km": {
+      "seconds": 286
+    },
+    "1 mile": {
+      "seconds": 524
+    },
+    "5 km": {
+      "seconds": 1789
+    },
+    "10 km": {
+      "seconds": 6475
+    }
+  }
 }
