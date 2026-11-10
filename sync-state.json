@@ -3,42 +3,53 @@
   "latestEnd": "2026-11-10T10:00:00Z",
   "latestLocal": "2026-11-10 11:00:00 +0100",
   "previousLocal": "2026-11-09 07:00:00 +0100",
-  "buildKey": "fbe714c8b2eaffdb",
-  "buildId": "b84bd912b320",
-  "syncedAt": "2026-11-10T11:14:45",
+  "buildKey": "6ad12c01147df554",
+  "buildId": "a8788b339287",
+  "syncedAt": "2026-11-10T11:24:32",
   "records": {
     "Peak speed": {
-      "speedKmh": 28.7
+      "speedKmh": 28.7,
+      "date": "2026-11-10"
     },
     "40 m": {
-      "seconds": 5.614
+      "seconds": 5.636,
+      "date": "2026-11-10"
     },
     "50 m": {
-      "seconds": 7.052
+      "seconds": 7.073,
+      "date": "2026-11-10"
     },
     "100 m": {
-      "seconds": 14.82
+      "seconds": 16.07,
+      "date": "2026-11-10"
     },
     "200 m": {
-      "seconds": 37.84
+      "seconds": 41.187,
+      "date": "2026-11-10"
     },
     "400 m": {
-      "seconds": 77.434
+      "seconds": 85.998,
+      "date": "2026-11-10"
     },
     "800 m": {
-      "seconds": 166.836
+      "seconds": 252.57,
+      "date": "2026-11-06"
     },
     "1 km": {
-      "seconds": 286
+      "seconds": 286,
+      "date": "2025-12-17"
     },
     "1 mile": {
-      "seconds": 524
+      "seconds": 524,
+      "date": "2025-10-07"
     },
     "5 km": {
-      "seconds": 1789
+      "seconds": 1789,
+      "date": "2026-02-22"
     },
     "10 km": {
-      "seconds": 6475
+      "seconds": 6475,
+      "date": "2026-06-07"
     }
   }
 }
