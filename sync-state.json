@@ -1,11 +1,11 @@
 {
   "zip": "export.zip",
-  "latestEnd": "2026-11-10T10:00:00Z",
-  "latestLocal": "2026-11-10 11:00:00 +0100",
-  "previousLocal": "2026-11-09 07:00:00 +0100",
+  "latestEnd": "2026-11-12T09:00:00Z",
+  "latestLocal": "2026-11-12 10:00:00 +0100",
+  "previousLocal": "2026-11-10 11:00:00 +0100",
   "buildKey": "6ad12c01147df554",
-  "buildId": "a8788b339287",
-  "syncedAt": "2026-11-10T11:24:32",
+  "buildId": "bb6d65ddd230",
+  "syncedAt": "2026-11-12T09:26:23",
   "records": {
     "Peak speed": {
       "speedKmh": 28.7,
